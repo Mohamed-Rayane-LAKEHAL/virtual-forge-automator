@@ -10,7 +10,6 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Form,
   FormControl,
@@ -39,12 +38,12 @@ const AddVMModal: React.FC<AddVMModalProps> = ({ open, onOpenChange, onVMCreated
       vmName: '',
       esxiHost: '',
       datastore: '',
-      network: '',
-      cpuCount: 1,
-      memoryGB: 1,
-      diskGB: 20,
+      network: 'VM Network',
+      cpuCount: 2,
+      memoryGB: 4,
+      diskGB: 40,
       isoPath: '',
-      guestOS: '',
+      guestOS: 'windows9Server64Guest',
       vcenter: '',
     },
   });
@@ -55,7 +54,7 @@ const AddVMModal: React.FC<AddVMModalProps> = ({ open, onOpenChange, onVMCreated
       await apiService.createVM(data);
       toast({
         title: "VM Creation Started",
-        description: `VM "${data.vmName}" is being created. This may take several minutes.`,
+        description: `VM "${data.vmName}" is being created. This may take several minutes. The PowerShell script is running in the background.`,
       });
       form.reset();
       onOpenChange(false);
@@ -63,7 +62,7 @@ const AddVMModal: React.FC<AddVMModalProps> = ({ open, onOpenChange, onVMCreated
     } catch (error) {
       toast({
         title: "Failed to create VM",
-        description: error instanceof Error ? error.message : "An error occurred",
+        description: error instanceof Error ? error.message : "An error occurred. Make sure your Flask backend is running.",
         variant: "destructive",
       });
     } finally {
@@ -77,7 +76,7 @@ const AddVMModal: React.FC<AddVMModalProps> = ({ open, onOpenChange, onVMCreated
         <DialogHeader>
           <DialogTitle>Add New Virtual Machine</DialogTitle>
           <DialogDescription>
-            Fill in the details to create a new VM on your vCenter server.
+            Fill in the details to create a new VM on your vCenter server. The PowerShell script will run automatically.
           </DialogDescription>
         </DialogHeader>
 
@@ -89,9 +88,9 @@ const AddVMModal: React.FC<AddVMModalProps> = ({ open, onOpenChange, onVMCreated
                 name="vmName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>VM Name</FormLabel>
+                    <FormLabel>VM Name *</FormLabel>
                     <FormControl>
-                      <Input placeholder="my-vm-01" {...field} />
+                      <Input placeholder="my-vm-01" {...field} required />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -103,9 +102,9 @@ const AddVMModal: React.FC<AddVMModalProps> = ({ open, onOpenChange, onVMCreated
                 name="esxiHost"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>ESXi Host</FormLabel>
+                    <FormLabel>ESXi Host *</FormLabel>
                     <FormControl>
-                      <Input placeholder="esxi-host-01.domain.com" {...field} />
+                      <Input placeholder="esxi-host-01.domain.com" {...field} required />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -117,9 +116,9 @@ const AddVMModal: React.FC<AddVMModalProps> = ({ open, onOpenChange, onVMCreated
                 name="datastore"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Datastore</FormLabel>
+                    <FormLabel>Datastore *</FormLabel>
                     <FormControl>
-                      <Input placeholder="datastore1" {...field} />
+                      <Input placeholder="datastore1" {...field} required />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -152,7 +151,7 @@ const AddVMModal: React.FC<AddVMModalProps> = ({ open, onOpenChange, onVMCreated
                         min="1" 
                         max="32" 
                         {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value))}
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
                       />
                     </FormControl>
                     <FormMessage />
@@ -172,7 +171,7 @@ const AddVMModal: React.FC<AddVMModalProps> = ({ open, onOpenChange, onVMCreated
                         min="1" 
                         max="128" 
                         {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value))}
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
                       />
                     </FormControl>
                     <FormMessage />
@@ -190,9 +189,9 @@ const AddVMModal: React.FC<AddVMModalProps> = ({ open, onOpenChange, onVMCreated
                       <Input 
                         type="number" 
                         min="1" 
-                        max="1000" 
+                        max="2000" 
                         {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value))}
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 20)}
                       />
                     </FormControl>
                     <FormMessage />
@@ -205,9 +204,9 @@ const AddVMModal: React.FC<AddVMModalProps> = ({ open, onOpenChange, onVMCreated
                 name="guestOS"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Guest OS</FormLabel>
+                    <FormLabel>Guest OS *</FormLabel>
                     <FormControl>
-                      <Input placeholder="windows9Server64Guest" {...field} />
+                      <Input placeholder="windows9Server64Guest" {...field} required />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -220,9 +219,9 @@ const AddVMModal: React.FC<AddVMModalProps> = ({ open, onOpenChange, onVMCreated
               name="isoPath"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>ISO Path</FormLabel>
+                  <FormLabel>ISO Path *</FormLabel>
                   <FormControl>
-                    <Input placeholder="[datastore1] iso/windows-server-2019.iso" {...field} />
+                    <Input placeholder="[datastore1] iso/windows-server-2019.iso" {...field} required />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -234,9 +233,9 @@ const AddVMModal: React.FC<AddVMModalProps> = ({ open, onOpenChange, onVMCreated
               name="vcenter"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>vCenter Server</FormLabel>
+                  <FormLabel>vCenter Server *</FormLabel>
                   <FormControl>
-                    <Input placeholder="vcenter.domain.com" {...field} />
+                    <Input placeholder="vcenter.domain.com or IP address" {...field} required />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

@@ -18,14 +18,19 @@ class ApiService {
       ...options,
     };
 
+    console.log(`Making ${config.method || 'GET'} request to: ${url}`);
+
     const response = await fetch(url, config);
     
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'An error occurred' }));
-      throw new Error(error.error || 'Network error');
+      const error = await response.json().catch(() => ({ error: 'Network error or server unavailable' }));
+      console.error('API Error:', error);
+      throw new Error(error.error || `HTTP ${response.status}: ${response.statusText}`);
     }
 
-    return response.json();
+    const data = await response.json();
+    console.log('API Response:', data);
+    return data;
   }
 
   async login(credentials: LoginData): Promise<{ message: string }> {

@@ -10,14 +10,16 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { VM } from '../types/vm';
 import { Server, Cpu, HardDrive, MemoryStick } from 'lucide-react';
 
 interface VMTableProps {
   vms: VM[];
+  isLoading?: boolean;
 }
 
-const VMTable: React.FC<VMTableProps> = ({ vms }) => {
+const VMTable: React.FC<VMTableProps> = ({ vms, isLoading = false }) => {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -27,6 +29,31 @@ const VMTable: React.FC<VMTableProps> = ({ vms }) => {
       minute: '2-digit',
     });
   };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Server className="h-5 w-5" />
+            Loading Virtual Machines...
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex space-x-4">
+                <Skeleton className="h-4 w-[200px]" />
+                <Skeleton className="h-4 w-[150px]" />
+                <Skeleton className="h-4 w-[100px]" />
+                <Skeleton className="h-4 w-[100px]" />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (vms.length === 0) {
     return (

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus, RefreshCw } from 'lucide-react';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import AppSidebar from './AppSidebar';
 import VMTable from './VMTable';
 import AddVMModal from './AddVMModal';
@@ -13,22 +14,37 @@ import { useToast } from '@/hooks/use-toast';
 const Dashboard: React.FC = () => {
   const [vms, setVms] = useState<VM[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const fetchVMs = async () => {
+  const fetchVMs = async (showToast = false) => {
     try {
-      setIsLoading(true);
+      setError(null);
+      if (showToast) setIsRefreshing(true);
+      else setIsLoading(true);
+      
       const data = await apiService.getVMs();
       setVms(data);
+      
+      if (showToast) {
+        toast({
+          title: "VMs refreshed",
+          description: `Loaded ${data.length} virtual machines`,
+        });
+      }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to load VMs";
+      setError(errorMessage);
       toast({
         title: "Failed to load VMs",
-        description: error instanceof Error ? error.message : "An error occurred",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -37,7 +53,11 @@ const Dashboard: React.FC = () => {
   }, []);
 
   const handleVMCreated = () => {
-    fetchVMs();
+    fetchVMs(true);
+  };
+
+  const handleRefresh = () => {
+    fetchVMs(true);
   };
 
   return (
@@ -53,13 +73,13 @@ const Dashboard: React.FC = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={fetchVMs}
-                disabled={isLoading}
+                onClick={handleRefresh}
+                disabled={isLoading || isRefreshing}
               >
-                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
-              <Button onClick={() => setIsModalOpen(true)}>
+              <Button onClick={() => setIsModalOpen(true)} disabled={isLoading}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add New VM
               </Button>
@@ -75,7 +95,15 @@ const Dashboard: React.FC = () => {
                 </p>
               </div>
 
-              <VMTable vms={vms} />
+              {error && (
+                <Alert variant="destructive" className="mb-6">
+                  <AlertDescription>
+                    {error}. Make sure your Flask backend is running on localhost:5000.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <VMTable vms={vms} isLoading={isLoading} />
             </div>
           </main>
         </div>
