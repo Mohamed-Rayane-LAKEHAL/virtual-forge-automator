@@ -39,13 +39,13 @@ const LoginForm: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-accent/20 to-primary/10">
+      <Card className="w-full max-w-md shadow-lg border-primary/20">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
-            <Server className="h-6 w-6 text-blue-600" />
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 border border-primary/20">
+            <Server className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-bold">VM Automation</CardTitle>
+          <CardTitle className="text-2xl font-bold text-primary">VM Automation</CardTitle>
           <CardDescription>
             Sign in to manage your virtual machines
           </CardDescription>
@@ -61,6 +61,7 @@ const LoginForm: React.FC = () => {
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Enter your username"
                 required
+                className="focus:ring-primary focus:border-primary"
               />
             </div>
             <div className="space-y-2">
@@ -72,11 +73,12 @@ const LoginForm: React.FC = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
                 required
+                className="focus:ring-primary focus:border-primary"
               />
             </div>
             <Button 
               type="submit" 
-              className="w-full" 
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:shadow-lg transition-all" 
               disabled={isLoading}
             >
               {isLoading ? "Signing in..." : "Sign In"}

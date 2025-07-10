@@ -35,12 +35,12 @@ const AppSidebar: React.FC = () => {
   };
 
   return (
-    <Sidebar className="border-r">
+    <Sidebar className="border-r border-primary/20">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-2">
-          <Server className="h-6 w-6 text-blue-600" />
+          <Server className="h-6 w-6 text-primary" />
           <div>
-            <h2 className="font-semibold">VM Automation</h2>
+            <h2 className="font-semibold text-primary">VM Automation</h2>
             <p className="text-xs text-muted-foreground">Welcome, {user?.username}</p>
           </div>
         </div>
@@ -52,13 +52,13 @@ const AppSidebar: React.FC = () => {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton>
+                <SidebarMenuButton className="hover:bg-primary/10 hover:text-primary">
                   <LayoutDashboard className="h-4 w-4" />
                   <span>Dashboard</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton onClick={handleLogout}>
+                <SidebarMenuButton onClick={handleLogout} className="hover:bg-primary/10 hover:text-primary">
                   <LogOut className="h-4 w-4" />
                   <span>Logout</span>
                 </SidebarMenuButton>
