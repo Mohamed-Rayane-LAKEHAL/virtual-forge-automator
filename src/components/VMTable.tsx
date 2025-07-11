@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { VM } from '../types/vm';
-import { Server, Cpu, HardDrive, MemoryStick } from 'lucide-react';
+import { Server, Cpu, HardDrive, MemoryStick, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 
 interface VMTableProps {
   vms: VM[];
@@ -28,6 +28,53 @@ const VMTable: React.FC<VMTableProps> = ({ vms, isLoading = false }) => {
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  const getResultBadge = (result?: string) => {
+    if (!result) {
+      return (
+        <Badge variant="secondary" className="w-fit">
+          <AlertCircle className="h-3 w-3 mr-1" />
+          No Result
+        </Badge>
+      );
+    }
+
+    if (result.startsWith('SUCCESS:')) {
+      return (
+        <Badge variant="default" className="w-fit bg-green-100 text-green-800 hover:bg-green-200">
+          <CheckCircle className="h-3 w-3 mr-1" />
+          Success
+        </Badge>
+      );
+    } else if (result.startsWith('ERROR:')) {
+      return (
+        <Badge variant="destructive" className="w-fit">
+          <XCircle className="h-3 w-3 mr-1" />
+          Error
+        </Badge>
+      );
+    } else {
+      return (
+        <Badge variant="outline" className="w-fit">
+          <AlertCircle className="h-3 w-3 mr-1" />
+          Unknown
+        </Badge>
+      );
+    }
+  };
+
+  const getResultDetails = (result?: string) => {
+    if (!result) return 'No execution result available';
+    
+    // Remove the SUCCESS: or ERROR: prefix and show the actual message
+    if (result.startsWith('SUCCESS:')) {
+      return result.substring(8).trim();
+    } else if (result.startsWith('ERROR:')) {
+      return result.substring(6).trim();
+    }
+    
+    return result;
   };
 
   if (isLoading) {
@@ -87,6 +134,7 @@ const VMTable: React.FC<VMTableProps> = ({ vms, isLoading = false }) => {
                 <TableHead>Network</TableHead>
                 <TableHead>Guest OS</TableHead>
                 <TableHead>vCenter</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Created</TableHead>
               </TableRow>
             </TableHeader>
@@ -121,6 +169,16 @@ const VMTable: React.FC<VMTableProps> = ({ vms, isLoading = false }) => {
                     <Badge variant="secondary">{vm.guestOS}</Badge>
                   </TableCell>
                   <TableCell>{vm.vcenter}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-1">
+                      {getResultBadge(vm.result)}
+                      {vm.result && (
+                        <span className="text-xs text-muted-foreground max-w-[200px] truncate" title={getResultDetails(vm.result)}>
+                          {getResultDetails(vm.result)}
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {formatDate(vm.created_at)}
                   </TableCell>

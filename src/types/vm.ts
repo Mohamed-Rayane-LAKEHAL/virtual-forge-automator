@@ -1,4 +1,3 @@
-
 export interface VM {
   id: number;
   vmName: string;
@@ -12,6 +11,7 @@ export interface VM {
   guestOS: string;
   vcenter: string;
   created_at: string;
+  result?: string;
 }
 
 export interface VMFormData {
