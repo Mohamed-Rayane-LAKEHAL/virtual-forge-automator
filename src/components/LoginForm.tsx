@@ -21,7 +21,7 @@ const LoginForm: React.FC = () => {
     setIsLoading(true);
 
     try {
-      await apiService.login({ username, password });
+      const response = await apiService.login({ username, password });
       login(username);
       toast({
         title: "Login successful",

@@ -1,5 +1,5 @@
 
-import { VM, VMFormData, LoginData } from '../types/vm';
+import { VM, VMFormData, LoginData, User } from '../types/vm';
 
 const API_BASE_URL = 'http://localhost:5000';
 
@@ -33,11 +33,15 @@ class ApiService {
     return data;
   }
 
-  async login(credentials: LoginData): Promise<{ message: string }> {
+  async login(credentials: LoginData): Promise<{ message: string; user: User }> {
     return this.request('/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
     });
+  }
+
+  async checkAuth(): Promise<{ authenticated: boolean; user?: User }> {
+    return this.request('/check-auth');
   }
 
   async logout(): Promise<{ message: string }> {

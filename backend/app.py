@@ -31,6 +31,37 @@ def verify_password(password, hashed_password):
         # If bcrypt fails, check if it's plain text (for migration purposes)
         return password == hashed_password
 
+def ensure_status_column():
+    """Ensure the status column exists in the vms table"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Check if status column exists
+        cursor.execute("SHOW COLUMNS FROM vms LIKE 'status'")
+        result = cursor.fetchone()
+        
+        if not result:
+            # Add status column if it doesn't exist
+            cursor.execute("ALTER TABLE vms ADD COLUMN status VARCHAR(20) DEFAULT 'pending'")
+            conn.commit()
+            print("Added status column to vms table")
+            
+        # Check if result column exists
+        cursor.execute("SHOW COLUMNS FROM vms LIKE 'result'")
+        result = cursor.fetchone()
+        
+        if not result:
+            # Add result column if it doesn't exist
+            cursor.execute("ALTER TABLE vms ADD COLUMN result TEXT")
+            conn.commit()
+            print("Added result column to vms table")
+            
+    except Exception as e:
+        print(f"Error ensuring columns exist: {e}")
+    finally:
+        cursor.close()
+        conn.close()
+
 def execute_vm_creation_async(vm_id, vm_data):
     """Execute PowerShell script asynchronously and update database"""
     print(f"Starting PowerShell execution for VM ID: {vm_id}")
@@ -86,8 +117,16 @@ def login():
 
     if user and verify_password(data['password'], user['password']):
         session['user'] = user['username']
-        return jsonify({"message": "Login successful"}), 200
+        session.permanent = True  # Make session permanent
+        return jsonify({"message": "Login successful", "user": {"username": user['username']}}), 200
     return jsonify({"error": "Invalid credentials"}), 401
+
+@app.route('/check-auth', methods=['GET'])
+def check_auth():
+    """Check if user is authenticated"""
+    if 'user' in session:
+        return jsonify({"authenticated": True, "user": {"username": session['user']}}), 200
+    return jsonify({"authenticated": False}), 401
 
 @app.route('/logout', methods=['POST'])
 def logout():
@@ -96,6 +135,9 @@ def logout():
 
 @app.route('/vms', methods=['GET'])
 def list_vms():
+    if 'user' not in session:
+        return jsonify({"error": "Authentication required"}), 401
+        
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("SELECT * FROM vms ORDER BY created_at DESC")
@@ -106,8 +148,14 @@ def list_vms():
 
 @app.route('/vms', methods=['POST'])
 def create_vm():
+    if 'user' not in session:
+        return jsonify({"error": "Authentication required"}), 401
+        
     vm_data = request.json
     print("VM DATA : ", vm_data)
+    
+    # Ensure columns exist before inserting
+    ensure_status_column()
     
     # First, insert VM with pending status
     conn = get_db_connection()
@@ -133,4 +181,6 @@ def create_vm():
     return jsonify({"message": "VM creation started", "vm_id": vm_id}), 201
 
 if __name__ == '__main__':
+    # Ensure database columns exist on startup
+    ensure_status_column()
     app.run(debug=True, host='0.0.0.0', port=5000)

@@ -1,35 +1,46 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types/vm';
+import { apiService } from '../services/api';
 
 interface AuthContextType {
   user: User | null;
   login: (username: string) => void;
   logout: () => void;
   isAuthenticated: boolean;
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    const checkAuthStatus = async () => {
+      try {
+        const response = await apiService.checkAuth();
+        if (response.authenticated && response.user) {
+          setUser(response.user);
+        }
+      } catch (error) {
+        console.log('User not authenticated');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuthStatus();
   }, []);
 
   const login = (username: string) => {
     const userData = { username };
     setUser(userData);
-    localStorage.setItem('user', JSON.stringify(userData));
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('user');
   };
 
   return (
@@ -37,7 +48,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       user,
       login,
       logout,
-      isAuthenticated: !!user
+      isAuthenticated: !!user,
+      isLoading
     }}>
       {children}
     </AuthContext.Provider>
