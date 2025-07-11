@@ -4,6 +4,8 @@ from flask_cors import CORS
 from database import get_db_connection
 from powershell_runner import run_vm_creation_powershell
 import bcrypt
+import threading
+import time
 
 app = Flask(__name__)
 
@@ -28,6 +30,39 @@ def verify_password(password, hashed_password):
     except ValueError:
         # If bcrypt fails, check if it's plain text (for migration purposes)
         return password == hashed_password
+
+def execute_vm_creation_async(vm_id, vm_data):
+    """Execute PowerShell script asynchronously and update database"""
+    print(f"Starting PowerShell execution for VM ID: {vm_id}")
+    ps_result = run_vm_creation_powershell(vm_data)
+    print("RESULT FROM APP.PY: ", ps_result)
+    
+    # Determine status based on PowerShell result
+    if ps_result['success']:
+        # Check if the VM name appears in the success message
+        output = ps_result['output']
+        vm_name = vm_data['vmName']
+        if f"✅ VM '{vm_name}'" in output:
+            status = 'success'
+            result_text = f"SUCCESS: {output}"
+        else:
+            status = 'error'
+            result_text = f"ERROR: VM creation may have failed - name not found in success message"
+    else:
+        status = 'error'
+        result_text = f"ERROR: {ps_result['error']}"
+    
+    # Update database with result
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE vms SET result = %s, status = %s WHERE id = %s
+    """, (result_text, status, vm_id))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    
+    print(f"VM {vm_id} updated with status: {status}")
 
 @app.route('/hash-password', methods=['POST'])
 def hash_user_password():
@@ -73,31 +108,29 @@ def list_vms():
 def create_vm():
     vm_data = request.json
     print("VM DATA : ", vm_data)
-    # Execute PowerShell script and get result
-    ps_result = run_vm_creation_powershell(vm_data)
-    print("RESULT FROM APP.PY: ", ps_result)
-    # Prepare result string for database storage
-    if ps_result['success']:
-        result_text = f"SUCCESS: {ps_result['output']}"
-    else:
-        result_text = f"ERROR: {ps_result['error']}"
     
-    # Insert VM data with result into database
+    # First, insert VM with pending status
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        INSERT INTO vms (vmName, esxiHost, datastore, network, cpuCount, memoryGB, diskGB, isoPath, guestOS, vcenter, result)
+        INSERT INTO vms (vmName, esxiHost, datastore, network, cpuCount, memoryGB, diskGB, isoPath, guestOS, vcenter, status)
         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
     """, (
         vm_data['vmName'], vm_data['esxiHost'], vm_data['datastore'], vm_data['network'],
         vm_data['cpuCount'], vm_data['memoryGB'], vm_data['diskGB'],
-        vm_data['isoPath'], vm_data['guestOS'], vm_data['vcenter'], result_text
+        vm_data['isoPath'], vm_data['guestOS'], vm_data['vcenter'], 'pending'
     ))
+    vm_id = cursor.lastrowid
     conn.commit()
     cursor.close()
     conn.close()
-
-    return jsonify({"message": "VM created and PowerShell executed", "result": ps_result}), 201
+    
+    # Start PowerShell execution in background thread
+    thread = threading.Thread(target=execute_vm_creation_async, args=(vm_id, vm_data))
+    thread.daemon = True
+    thread.start()
+    
+    return jsonify({"message": "VM creation started", "vm_id": vm_id}), 201
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

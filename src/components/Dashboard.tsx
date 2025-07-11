@@ -50,6 +50,13 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     fetchVMs();
+    
+    // Set up auto-refresh every 5 seconds to check for status updates
+    const interval = setInterval(() => {
+      fetchVMs();
+    }, 5000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const handleVMCreated = () => {

@@ -12,6 +12,7 @@ export interface VM {
   vcenter: string;
   created_at: string;
   result?: string;
+  status: 'pending' | 'success' | 'error';
 }
 
 export interface VMFormData {
