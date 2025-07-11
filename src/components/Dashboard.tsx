@@ -43,7 +43,7 @@ const Dashboard: React.FC = () => {
       else setIsLoading(true);
       
       const data = await apiService.getVMs();
-      setVMs(data);
+      setVms(data);
       
       if (showToast) {
         toast({
@@ -82,11 +82,6 @@ const Dashboard: React.FC = () => {
 
   const handleRefresh = () => {
     fetchVMs(true);
-  };
-
-  const handleVMSelect = (vm: VM) => {
-    setSelectedVM(vm);
-    setSearchParams({ vmDetails: vm.id.toString() });
   };
 
   const handleVMDetailsClose = () => {
@@ -140,7 +135,6 @@ const Dashboard: React.FC = () => {
               <VMTable 
                 vms={vms} 
                 isLoading={isLoading} 
-                onVMSelect={handleVMSelect}
               />
             </div>
           </main>
