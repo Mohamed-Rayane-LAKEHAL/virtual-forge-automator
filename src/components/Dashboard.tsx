@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus, RefreshCw } from 'lucide-react';
@@ -12,6 +11,7 @@ import VMDetailsModal from './VMDetailsModal';
 import { VM } from '../types/vm';
 import { apiService } from '../services/api';
 import { useToast } from '@/hooks/use-toast';
+import BatchAddVMModal from './BatchAddVMModal';
 
 const Dashboard: React.FC = () => {
   const [vms, setVms] = useState<VM[]>([]);
@@ -22,6 +22,7 @@ const Dashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
+  const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
 
   // Handle VM details modal state from URL parameters
   useEffect(() => {
@@ -108,6 +109,14 @@ const Dashboard: React.FC = () => {
                 <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setIsBatchModalOpen(true)} 
+                disabled={isLoading}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Batch Add VMs
+              </Button>
               <Button onClick={() => setIsModalOpen(true)} disabled={isLoading}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add New VM
@@ -145,6 +154,12 @@ const Dashboard: React.FC = () => {
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
         onVMCreated={handleVMCreated}
+      />
+
+      <BatchAddVMModal
+        open={isBatchModalOpen}
+        onOpenChange={setIsBatchModalOpen}
+        onVMsCreated={handleVMCreated}
       />
 
       <VMDetailsModal

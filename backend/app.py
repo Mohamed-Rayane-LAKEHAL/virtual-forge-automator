@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify, session
 from flask_cors import CORS
 from database import get_db_connection
@@ -202,6 +201,60 @@ def create_vm():
     thread.start()
     
     return jsonify({"message": "VM creation started", "vm_id": vm_id}), 201
+
+@app.route('/vms/batch', methods=['POST'])
+@require_auth
+def create_batch_vms():
+    batch_data = request.json
+    print("BATCH VM DATA: ", batch_data)
+    
+    # Ensure columns exist before inserting
+    ensure_status_column()
+    
+    vm_names = batch_data.get('vmNames', [])
+    if not vm_names:
+        return jsonify({"error": "No VM names provided"}), 400
+    
+    # Extract template data
+    template_data = {k: v for k, v in batch_data.items() if k != 'vmNames'}
+    
+    vm_ids = []
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # Insert all VMs with pending status
+        for vm_name in vm_names:
+            cursor.execute("""
+                INSERT INTO vms (vmName, esxiHost, datastore, network, cpuCount, memoryGB, diskGB, isoPath, guestOS, vcenter, status)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            """, (
+                vm_name, template_data['esxiHost'], template_data['datastore'], template_data['network'],
+                template_data['cpuCount'], template_data['memoryGB'], template_data['diskGB'],
+                template_data['isoPath'], template_data['guestOS'], template_data['vcenter'], 'pending'
+            ))
+            vm_ids.append(cursor.lastrowid)
+        
+        conn.commit()
+        
+        # Start PowerShell execution for each VM in background threads
+        for i, vm_id in enumerate(vm_ids):
+            vm_data = {**template_data, 'vmName': vm_names[i]}
+            thread = threading.Thread(target=execute_vm_creation_async, args=(vm_id, vm_data))
+            thread.daemon = True
+            thread.start()
+            # Add small delay between starts to avoid overwhelming the system
+            time.sleep(1)
+        
+        return jsonify({"message": f"Batch VM creation started for {len(vm_names)} VMs", "vm_ids": vm_ids}), 201
+        
+    except Exception as e:
+        conn.rollback()
+        print(f"Error creating batch VMs: {e}")
+        return jsonify({"error": f"Failed to create batch VMs: {str(e)}"}), 500
+    finally:
+        cursor.close()
+        conn.close()
 
 if __name__ == '__main__':
     # Ensure database columns exist on startup

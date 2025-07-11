@@ -1,7 +1,10 @@
-
 import { VM, VMFormData, LoginData, User } from '../types/vm';
 
 const API_BASE_URL = 'http://localhost:5000';
+
+export interface BatchVMData extends Omit<VMFormData, 'vmName'> {
+  vmNames: string[];
+}
 
 class ApiService {
   private async request<T>(
@@ -58,6 +61,13 @@ class ApiService {
     return this.request('/vms', {
       method: 'POST',
       body: JSON.stringify(vmData),
+    });
+  }
+
+  async createBatchVMs(batchData: BatchVMData): Promise<{ message: string; vm_ids: number[] }> {
+    return this.request('/vms/batch', {
+      method: 'POST',
+      body: JSON.stringify(batchData),
     });
   }
 }

@@ -36,3 +36,7 @@ export interface LoginData {
 export interface User {
   username: string;
 }
+
+export interface BatchVMData extends Omit<VMFormData, 'vmName'> {
+  vmNames: string[];
+}
