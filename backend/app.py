@@ -72,7 +72,7 @@ def list_vms():
 @app.route('/vms', methods=['POST'])
 def create_vm():
     vm_data = request.json
-    
+    print("VM DATA : ", vm_data)
     # Execute PowerShell script and get result
     ps_result = run_vm_creation_powershell(vm_data)
     
