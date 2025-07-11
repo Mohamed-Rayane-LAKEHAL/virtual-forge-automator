@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus, RefreshCw } from 'lucide-react';
@@ -51,10 +50,10 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     fetchVMs();
     
-    // Set up auto-refresh every 5 seconds to check for status updates
+    // Set up auto-refresh every 30 seconds to check for status updates
     const interval = setInterval(() => {
       fetchVMs();
-    }, 5000);
+    }, 30000);
     
     return () => clearInterval(interval);
   }, []);
