@@ -1,3 +1,15 @@
+param(
+    [string]$vmName,
+    [string]$esxiHost,
+    [string]$datastore,
+    [string]$network,
+    [int]$cpuCount,
+    [int]$memoryGB,
+    [int]$diskGB,
+    [string]$isoPath,
+    [string]$guestOS,
+    [string]$vcenter
+)
 
 # -----------------------------------------------
 # ✅ Install PowerCLI if not already installed
@@ -29,18 +41,6 @@ Set-PowerCLIConfiguration -DefaultVIServerMode Single -Confirm:$false
 #Set-PowerCLIConfiguration -DefaultVIServerMode Multiple -Confirm:$false
 
 # Get parameters passed from Python
-param(
-    [string]$vmName,
-    [string]$esxiHost,
-    [string]$datastore,
-    [string]$network,
-    [int]$cpuCount,
-    [int]$memoryGB,
-    [int]$diskGB,
-    [string]$isoPath,
-    [string]$guestOS,
-    [string]$vcenter
-)
 
 Connect-VIServer -Server $vcenter -Credential $cred
 
