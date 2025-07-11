@@ -19,7 +19,9 @@ Set-PowerCLIConfiguration -DefaultVIServerMode Single -Confirm:$false | Out-Null
 {setup_cmds}
 & '{ps_script}' -vmName '{vm_data['vmName']}' -esxiHost '{vm_data['esxiHost']}' -datastore '{vm_data['datastore']}' -network '{vm_data['network']}' -cpuCount {vm_data['cpuCount']} -memoryGB {vm_data['memoryGB']} -diskGB {vm_data['diskGB']} -isoPath '{vm_data['isoPath']}' -guestOS '{vm_data['guestOS']}' -vcenter '{vm_data['vcenter']}'
 """
-    
+
+    print("COMMAND: ", command)
+    print("SYSTEM : ", platform.system())
     # Determine the PowerShell executable based on the operating system
     if platform.system() == "Windows":
         ps_executable = "powershell.exe"
