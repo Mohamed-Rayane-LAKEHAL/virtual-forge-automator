@@ -20,12 +20,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
+        console.log('Checking authentication status...');
         const response = await apiService.checkAuth();
+        console.log('Auth check response:', response);
         if (response.authenticated && response.user) {
           setUser(response.user);
+          console.log('User authenticated:', response.user);
+        } else {
+          console.log('User not authenticated');
+          setUser(null);
         }
       } catch (error) {
-        console.log('User not authenticated');
+        console.log('Auth check failed:', error);
+        setUser(null);
       } finally {
         setIsLoading(false);
       }
@@ -34,13 +41,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     checkAuthStatus();
   }, []);
 
-  const login = (username: string) => {
+  const login = async (username: string) => {
     const userData = { username };
     setUser(userData);
+    console.log('User logged in:', userData);
   };
 
-  const logout = () => {
-    setUser(null);
+  const logout = async () => {
+    try {
+      await apiService.logout();
+      setUser(null);
+      console.log('User logged out');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Force logout even if API call fails
+      setUser(null);
+    }
   };
 
   return (

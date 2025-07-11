@@ -6,6 +6,7 @@ from powershell_runner import run_vm_creation_powershell
 import bcrypt
 import threading
 import time
+import os
 
 app = Flask(__name__)
 
@@ -16,7 +17,12 @@ CORS(app,
      allow_headers=['Content-Type', 'Authorization'],
      methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
 
-app.secret_key = 'your_secret_key'
+# Use a more secure secret key
+app.secret_key = os.environ.get('SECRET_KEY', 'your_very_secure_secret_key_change_in_production')
+app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour
 
 def hash_password(password):
     """Hash a password using bcrypt"""
@@ -30,6 +36,15 @@ def verify_password(password, hashed_password):
     except ValueError:
         # If bcrypt fails, check if it's plain text (for migration purposes)
         return password == hashed_password
+
+def require_auth(f):
+    """Decorator to require authentication for endpoints"""
+    def decorated_function(*args, **kwargs):
+        if 'user' not in session:
+            return jsonify({"error": "Authentication required"}), 401
+        return f(*args, **kwargs)
+    decorated_function.__name__ = f.__name__
+    return decorated_function
 
 def ensure_status_column():
     """Ensure the status column exists in the vms table"""
@@ -108,6 +123,9 @@ def hash_user_password():
 @app.route('/login', methods=['POST'])
 def login():
     data = request.json
+    if not data or 'username' not in data or 'password' not in data:
+        return jsonify({"error": "Username and password required"}), 400
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("SELECT * FROM users WHERE username=%s", (data['username'],))
@@ -117,27 +135,34 @@ def login():
 
     if user and verify_password(data['password'], user['password']):
         session['user'] = user['username']
-        session.permanent = True  # Make session permanent
+        session.permanent = True
+        print(f"User {user['username']} logged in successfully")
         return jsonify({"message": "Login successful", "user": {"username": user['username']}}), 200
+    
+    print(f"Failed login attempt for username: {data.get('username', 'unknown')}")
     return jsonify({"error": "Invalid credentials"}), 401
 
 @app.route('/check-auth', methods=['GET'])
 def check_auth():
     """Check if user is authenticated"""
+    print(f"Auth check - Session: {dict(session)}")
     if 'user' in session:
+        print(f"User {session['user']} is authenticated")
         return jsonify({"authenticated": True, "user": {"username": session['user']}}), 200
+    
+    print("No authenticated user found")
     return jsonify({"authenticated": False}), 401
 
 @app.route('/logout', methods=['POST'])
 def logout():
+    username = session.get('user', 'unknown')
     session.clear()
+    print(f"User {username} logged out")
     return jsonify({"message": "Logged out"}), 200
 
 @app.route('/vms', methods=['GET'])
+@require_auth
 def list_vms():
-    if 'user' not in session:
-        return jsonify({"error": "Authentication required"}), 401
-        
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("SELECT * FROM vms ORDER BY created_at DESC")
@@ -147,10 +172,8 @@ def list_vms():
     return jsonify(vms)
 
 @app.route('/vms', methods=['POST'])
+@require_auth
 def create_vm():
-    if 'user' not in session:
-        return jsonify({"error": "Authentication required"}), 401
-        
     vm_data = request.json
     print("VM DATA : ", vm_data)
     

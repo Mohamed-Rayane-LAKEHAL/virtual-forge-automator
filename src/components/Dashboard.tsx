@@ -1,11 +1,14 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus, RefreshCw } from 'lucide-react';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useSearchParams } from 'react-router-dom';
 import AppSidebar from './AppSidebar';
 import VMTable from './VMTable';
 import AddVMModal from './AddVMModal';
+import VMDetailsModal from './VMDetailsModal';
 import { VM } from '../types/vm';
 import { apiService } from '../services/api';
 import { useToast } from '@/hooks/use-toast';
@@ -15,8 +18,23 @@ const Dashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedVM, setSelectedVM] = useState<VM | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
+
+  // Handle VM details modal state from URL parameters
+  useEffect(() => {
+    const vmId = searchParams.get('vmDetails');
+    if (vmId && vms.length > 0) {
+      const vm = vms.find(v => v.id === parseInt(vmId));
+      if (vm) {
+        setSelectedVM(vm);
+      }
+    } else {
+      setSelectedVM(null);
+    }
+  }, [searchParams, vms]);
 
   const fetchVMs = async (showToast = false) => {
     try {
@@ -25,7 +43,7 @@ const Dashboard: React.FC = () => {
       else setIsLoading(true);
       
       const data = await apiService.getVMs();
-      setVms(data);
+      setVMs(data);
       
       if (showToast) {
         toast({
@@ -64,6 +82,16 @@ const Dashboard: React.FC = () => {
 
   const handleRefresh = () => {
     fetchVMs(true);
+  };
+
+  const handleVMSelect = (vm: VM) => {
+    setSelectedVM(vm);
+    setSearchParams({ vmDetails: vm.id.toString() });
+  };
+
+  const handleVMDetailsClose = () => {
+    setSelectedVM(null);
+    setSearchParams({});
   };
 
   return (
@@ -109,7 +137,11 @@ const Dashboard: React.FC = () => {
                 </Alert>
               )}
 
-              <VMTable vms={vms} isLoading={isLoading} />
+              <VMTable 
+                vms={vms} 
+                isLoading={isLoading} 
+                onVMSelect={handleVMSelect}
+              />
             </div>
           </main>
         </div>
@@ -119,6 +151,12 @@ const Dashboard: React.FC = () => {
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
         onVMCreated={handleVMCreated}
+      />
+
+      <VMDetailsModal
+        vm={selectedVM}
+        open={!!selectedVM}
+        onOpenChange={handleVMDetailsClose}
       />
     </SidebarProvider>
   );
