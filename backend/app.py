@@ -75,7 +75,7 @@ def create_vm():
     print("VM DATA : ", vm_data)
     # Execute PowerShell script and get result
     ps_result = run_vm_creation_powershell(vm_data)
-    print("RESULT : ", ps_result)
+    print("RESULT FROM APP.PY: ", ps_result)
     # Prepare result string for database storage
     if ps_result['success']:
         result_text = f"SUCCESS: {ps_result['output']}"
