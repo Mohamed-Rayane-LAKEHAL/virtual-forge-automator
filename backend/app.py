@@ -11,7 +11,7 @@ app = Flask(__name__)
 
 # Configure CORS properly for your frontend
 CORS(app, 
-     origins=['http://localhost:8080', 'http://127.0.0.1:8080'],
+     origins="*",
      supports_credentials=True,
      allow_headers=['Content-Type', 'Authorization'],
      methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
