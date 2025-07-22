@@ -9,7 +9,7 @@ import os
 
 app = Flask(__name__)
 
-# Configure CORS properly for your frontend
+# Configure CORS to accept requests from any origin (more permissive for development)
 CORS(app, 
      origins="*",
      supports_credentials=True,
@@ -20,7 +20,7 @@ CORS(app,
 app.secret_key = os.environ.get('SECRET_KEY', 'your_very_secure_secret_key_change_in_production')
 app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Changed from 'Lax' to 'None' to allow cross-origin requests
 app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour
 
 def hash_password(password):
@@ -135,7 +135,7 @@ def login():
     if user and verify_password(data['password'], user['password']):
         session['user'] = user['username']
         session.permanent = True
-        print(f"User {user['username']} logged in successfully")
+        print(f"User {user['username']} logged in successfully. Session: {dict(session)}")
         return jsonify({"message": "Login successful", "user": {"username": user['username']}}), 200
     
     print(f"Failed login attempt for username: {data.get('username', 'unknown')}")
@@ -259,4 +259,5 @@ def create_batch_vms():
 if __name__ == '__main__':
     # Ensure database columns exist on startup
     ensure_status_column()
+    # Bind to all network interfaces (0.0.0.0) to be accessible from other machines
     app.run(debug=True, host='0.0.0.0', port=5000)

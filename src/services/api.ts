@@ -1,6 +1,7 @@
 import { VM, VMFormData, LoginData, User } from '../types/vm';
 
-const API_BASE_URL = 'http://192.168.1.41:5000';
+// Allow configuration through environment variables with a fallback mechanism
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export interface BatchVMData extends Omit<VMFormData, 'vmName'> {
   vmNames: string[];
@@ -23,17 +24,23 @@ class ApiService {
 
     console.log(`Making ${config.method || 'GET'} request to: ${url}`);
 
-    const response = await fetch(url, config);
-    
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Network error or server unavailable' }));
-      console.error('API Error:', error);
-      throw new Error(error.error || `HTTP ${response.status}: ${response.statusText}`);
-    }
+    try {
+      const response = await fetch(url, config);
+      
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Network error or server unavailable' }));
+        console.error('API Error:', error);
+        throw new Error(error.error || `HTTP ${response.status}: ${response.statusText}`);
+      }
 
-    const data = await response.json();
-    console.log('API Response:', data);
-    return data;
+      const data = await response.json();
+      console.log('API Response:', data);
+      return data;
+    } catch (error) {
+      console.error('API Request failed:', error);
+      // Rethrow to allow handling by callers
+      throw error;
+    }
   }
 
   async login(credentials: LoginData): Promise<{ message: string; user: User }> {
