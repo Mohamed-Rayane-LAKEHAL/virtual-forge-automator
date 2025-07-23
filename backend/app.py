@@ -11,7 +11,7 @@ app = Flask(__name__)
 
 # Configure CORS to accept requests from any origin (more permissive for development)
 CORS(app, 
-     origins="*",
+     origins=["http://192.168.1.41:8080"],
      supports_credentials=True,
      allow_headers=['Content-Type', 'Authorization'],
      methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
