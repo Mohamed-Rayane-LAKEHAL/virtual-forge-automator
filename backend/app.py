@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify, session, make_response
 from flask_cors import CORS
 from database import get_db_connection
@@ -10,9 +9,11 @@ import os
 
 app = Flask(__name__)
 
-# Configure CORS specifically for your network setup
+# Configure CORS to allow both local and Lovable preview domains
 CORS(app, 
-     origins=["http://localhost:8080", "http://127.0.0.1:8080", "http://192.168.1.41:8080"],  # Frontend URLs
+     origins=["http://localhost:8080", "http://127.0.0.1:8080", "http://192.168.1.41:8080", 
+              "https://fa092e75-dda3-4019-bc20-96f9f4bf4126.lovableproject.com",
+              "https://*.lovableproject.com"],  # Allow Lovable preview domains
      supports_credentials=True,
      allow_headers=['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
      methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
@@ -32,7 +33,9 @@ app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour
 def handle_preflight():
     if request.method == "OPTIONS":
         response = make_response()
-        response.headers.add("Access-Control-Allow-Origin", request.headers.get('Origin', '*'))
+        origin = request.headers.get('Origin')
+        if origin:
+            response.headers.add("Access-Control-Allow-Origin", origin)
         response.headers.add('Access-Control-Allow-Headers', "Content-Type, Authorization, Accept, Origin, X-Requested-With")
         response.headers.add('Access-Control-Allow-Methods', "GET, POST, PUT, DELETE, OPTIONS")
         response.headers.add('Access-Control-Allow-Credentials', "true")
@@ -41,8 +44,16 @@ def handle_preflight():
 @app.after_request
 def after_request(response):
     origin = request.headers.get('Origin')
-    if origin and origin in ["http://localhost:8080", "http://127.0.0.1:8080", "http://192.168.1.41:8080"]:
-        response.headers.add('Access-Control-Allow-Origin', origin)
+    if origin:
+        # Allow all Lovable preview domains and local development
+        allowed_origins = [
+            "http://localhost:8080", 
+            "http://127.0.0.1:8080", 
+            "http://192.168.1.41:8080",
+            "https://fa092e75-dda3-4019-bc20-96f9f4bf4126.lovableproject.com"
+        ]
+        if origin in allowed_origins or origin.endswith('.lovableproject.com'):
+            response.headers.add('Access-Control-Allow-Origin', origin)
     response.headers.add('Access-Control-Allow-Credentials', 'true')
     return response
 
@@ -170,7 +181,7 @@ def login():
         response = make_response(jsonify({"message": "Login successful", "user": {"username": user['username']}}))
         response.headers.add('Access-Control-Allow-Credentials', 'true')
         origin = request.headers.get('Origin')
-        if origin and origin in ["http://localhost:8080", "http://127.0.0.1:8080", "http://192.168.1.41:8080"]:
+        if origin and (origin in ["http://localhost:8080", "http://127.0.0.1:8080", "http://192.168.1.41:8080", "https://fa092e75-dda3-4019-bc20-96f9f4bf4126.lovableproject.com"] or origin.endswith('.lovableproject.com')):
             response.headers.add('Access-Control-Allow-Origin', origin)
         return response, 200
     
@@ -197,7 +208,7 @@ def check_auth():
     response = make_response(jsonify(response_data))
     response.headers.add('Access-Control-Allow-Credentials', 'true')
     origin = request.headers.get('Origin')
-    if origin and origin in ["http://localhost:8080", "http://127.0.0.1:8080", "http://192.168.1.41:8080"]:
+    if origin and (origin in ["http://localhost:8080", "http://127.0.0.1:8080", "http://192.168.1.41:8080", "https://fa092e75-dda3-4019-bc20-96f9f4bf4126.lovableproject.com"] or origin.endswith('.lovableproject.com')):
         response.headers.add('Access-Control-Allow-Origin', origin)
     return response, status_code
 
@@ -209,7 +220,7 @@ def logout():
     response = make_response(jsonify({"message": "Logged out"}))
     response.headers.add('Access-Control-Allow-Credentials', 'true')
     origin = request.headers.get('Origin')
-    if origin and origin in ["http://localhost:8080", "http://127.0.0.1:8080", "http://192.168.1.41:8080"]:
+    if origin and (origin in ["http://localhost:8080", "http://127.0.0.1:8080", "http://192.168.1.41:8080", "https://fa092e75-dda3-4019-bc20-96f9f4bf4126.lovableproject.com"] or origin.endswith('.lovableproject.com')):
         response.headers.add('Access-Control-Allow-Origin', origin)
     return response, 200
 
@@ -322,4 +333,5 @@ if __name__ == '__main__':
     ensure_status_column()
     # Bind to all network interfaces (0.0.0.0) to be accessible from other machines
     print("Starting Flask server on http://192.168.1.41:5000")
+    print("Configured to accept requests from Lovable preview domains")
     app.run(debug=True, host='0.0.0.0', port=5000)
