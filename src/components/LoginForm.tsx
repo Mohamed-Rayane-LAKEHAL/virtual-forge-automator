@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { AlertCircle, Server, Wifi } from 'lucide-react';
+import { AlertCircle, Server } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
 import { useToast } from '@/hooks/use-toast';
@@ -16,23 +16,6 @@ const LoginForm: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const { login } = useAuth();
   const { toast } = useToast();
-
-  const getErrorMessage = (error: string) => {
-    if (error.includes('Server is currently unavailable')) {
-      return 'Unable to connect to the server. Please contact your system administrator.';
-    }
-    if (error.includes('Invalid credentials')) {
-      return 'Invalid username or password. Please try again.';
-    }
-    return 'An error occurred. Please try again.';
-  };
-
-  const getErrorIcon = (error: string) => {
-    if (error.includes('Server is currently unavailable')) {
-      return <Wifi className="h-4 w-4" />;
-    }
-    return <AlertCircle className="h-4 w-4" />;
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,12 +34,11 @@ const LoginForm: React.FC = () => {
       });
     } catch (error) {
       console.error('Login error:', error);
-      const errorMessage = error instanceof Error ? error.message : "An error occurred";
-      const userFriendlyMessage = getErrorMessage(errorMessage);
-      setError(userFriendlyMessage);
+      const errorMessage = error instanceof Error ? error.message : "Invalid credentials";
+      setError(errorMessage);
       toast({
         title: "Login failed",
-        description: userFriendlyMessage,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -80,7 +62,7 @@ const LoginForm: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
               <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
-                {getErrorIcon(error)}
+                <AlertCircle className="h-4 w-4" />
                 {error}
               </div>
             )}

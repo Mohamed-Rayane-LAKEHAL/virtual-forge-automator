@@ -1,11 +1,8 @@
 
 import { VM, VMFormData, LoginData, User } from '../types/vm';
 
-// Use the current machine's IP where the backend is running
+// Allow configuration through environment variables with a fallback mechanism
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://192.168.1.41:5000';
-
-console.log('API_BASE_URL configured as:', API_BASE_URL);
-console.log('Environment variables:', import.meta.env);
 
 export interface BatchVMData extends Omit<VMFormData, 'vmName'> {
   vmNames: string[];
@@ -29,7 +26,6 @@ class ApiService {
 
     console.log(`Making ${config.method || 'GET'} request to: ${url}`);
     console.log('Request config:', config);
-    console.log('Current window location:', window.location.href);
 
     try {
       const response = await fetch(url, config);
@@ -53,20 +49,10 @@ class ApiService {
       return data;
     } catch (error) {
       console.error('API Request failed:', error);
-      console.error('Error details:', {
-        name: error.name,
-        message: error.message,
-        stack: error.stack
-      });
       
       // Check if it's a network error
       if (error instanceof TypeError && error.message === 'Failed to fetch') {
-        console.error('Network error - possible causes:');
-        console.error('1. Server not running on', API_BASE_URL);
-        console.error('2. CORS not properly configured');
-        console.error('3. Network connectivity issues');
-        console.error('4. Firewall blocking the connection');
-        throw new Error('Server is currently unavailable. Please try again later.');
+        throw new Error(`Cannot connect to server at ${API_BASE_URL}. Please check if the backend is running and the URL is correct.`);
       }
       
       // Re-throw other errors

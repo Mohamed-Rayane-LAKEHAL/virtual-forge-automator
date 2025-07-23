@@ -9,7 +9,6 @@ interface AuthContextType {
   logout: () => void;
   isAuthenticated: boolean;
   isLoading: boolean;
-  connectionError: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -17,7 +16,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [connectionError, setConnectionError] = useState(false);
 
   useEffect(() => {
     const checkAuthStatus = async () => {
@@ -32,14 +30,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log('User not authenticated');
           setUser(null);
         }
-        setConnectionError(false);
       } catch (error) {
         console.log('Auth check failed:', error);
         setUser(null);
-        // Set connection error flag if it's a network issue
-        if (error instanceof Error && error.message.includes('Server is currently unavailable')) {
-          setConnectionError(true);
-        }
       } finally {
         setIsLoading(false);
       }
@@ -51,7 +44,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (username: string) => {
     const userData = { username };
     setUser(userData);
-    setConnectionError(false);
     console.log('User logged in:', userData);
   };
 
@@ -72,8 +64,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     login,
     logout,
     isAuthenticated: !!user,
-    isLoading,
-    connectionError
+    isLoading
   };
 
   return (
