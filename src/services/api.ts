@@ -1,3 +1,4 @@
+
 import { VM, VMFormData, LoginData, User } from '../types/vm';
 
 // Allow configuration through environment variables with a fallback mechanism
@@ -23,9 +24,13 @@ class ApiService {
     };
 
     console.log(`Making ${config.method || 'GET'} request to: ${url}`);
+    console.log('Request config:', config);
 
     try {
       const response = await fetch(url, config);
+      
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
       
       if (!response.ok) {
         const error = await response.json().catch(() => ({ error: 'Network error or server unavailable' }));
