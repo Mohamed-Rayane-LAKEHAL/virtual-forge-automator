@@ -1,4 +1,5 @@
 
+
 from flask import Flask, request, jsonify, session
 from flask_cors import CORS
 from database import get_db_connection
@@ -7,12 +8,14 @@ import bcrypt
 import threading
 import time
 import os
+import re
 
 app = Flask(__name__)
 
-# Configure CORS to accept requests from any IP in the 192.168.1.x network
+# Configure CORS with a more permissive approach for development
+# We'll handle specific origin validation in the after_request function
 CORS(app, 
-     origins=["http://192.168.1.*:8080", "http://192.168.1.*:3000", "http://localhost:8080", "http://localhost:3000"],
+     origins=True,  # Allow all origins, we'll validate in after_request
      supports_credentials=True,
      allow_headers=['Content-Type', 'Authorization'],
      methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
@@ -45,6 +48,19 @@ def require_auth(f):
         return f(*args, **kwargs)
     decorated_function.__name__ = f.__name__
     return decorated_function
+
+def is_allowed_origin(origin):
+    """Check if the origin is allowed"""
+    if not origin:
+        return False
+    
+    # Allow localhost for development
+    if origin.startswith('http://localhost:') or origin.startswith('https://localhost:'):
+        return True
+    
+    # Allow any IP in 192.168.1.x network on ports 8080 or 3000
+    pattern = r'^https?://192\.168\.1\.\d{1,3}:(8080|3000)$'
+    return re.match(pattern, origin) is not None
 
 def ensure_status_column():
     """Ensure the status column exists in the vms table"""
@@ -112,13 +128,19 @@ def execute_vm_creation_async(vm_id, vm_data):
 
 @app.after_request
 def after_request(response):
-    """Add CORS headers to all responses"""
+    """Add CORS headers to all responses with proper origin validation"""
     origin = request.headers.get('Origin')
-    if origin and any(origin.startswith(allowed.replace('*', '')) for allowed in ["http://192.168.1.", "http://localhost"]):
-        response.headers.add('Access-Control-Allow-Origin', origin)
-        response.headers.add('Access-Control-Allow-Credentials', 'true')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    
+    if origin and is_allowed_origin(origin):
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
+        response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST,DELETE,OPTIONS'
+        
+        print(f"CORS: Allowed origin {origin}")
+    else:
+        print(f"CORS: Rejected origin {origin}")
+    
     return response
 
 @app.route('/hash-password', methods=['POST'])
@@ -273,3 +295,4 @@ if __name__ == '__main__':
     ensure_status_column()
     # Bind to all network interfaces (0.0.0.0) to be accessible from other machines
     app.run(debug=True, host='0.0.0.0', port=5000)
+
