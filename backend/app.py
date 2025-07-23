@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify, session
 from flask_cors import CORS
 from database import get_db_connection
@@ -7,46 +6,43 @@ import bcrypt
 import threading
 import time
 import os
-from functools import wraps
 
 app = Flask(__name__)
 
-# Function to check if origin is allowed (any device in 192.168.1.x network on port 8080)
-def is_allowed_origin(origin):
-    if not origin:
-        return False
-    # Allow any IP in 192.168.1.x network on port 8080
-    import re
-    pattern = r'^http://192\.168\.1\.\d+:8080$'
-    return bool(re.match(pattern, origin))
-
-# Configure CORS to allow credentials from the 192.168.1.x network
+# Configure CORS to accept requests from any origin (more permissive for development)
 CORS(app, 
-     origins=is_allowed_origin,
+     origins="*",
      supports_credentials=True,
      allow_headers=['Content-Type', 'Authorization'],
      methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
 
-# Session configuration for cross-origin requests
+# Use a more secure secret key
 app.secret_key = os.environ.get('SECRET_KEY', 'your_very_secure_secret_key_change_in_production')
 app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = None  # Allow cross-site cookies
-app.config['SESSION_COOKIE_DOMAIN'] = None  # Don't restrict domain
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Changed from 'Lax' to 'None' to allow cross-origin requests
 app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour
 
 def hash_password(password):
+    """Hash a password using bcrypt"""
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
-def verify_password(password, hashed):
-    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+def verify_password(password, hashed_password):
+    """Verify a password against a hash, handling both bcrypt hashes and plain text"""
+    try:
+        # Try bcrypt verification first
+        return bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8'))
+    except ValueError:
+        # If bcrypt fails, check if it's plain text (for migration purposes)
+        return password == hashed_password
 
 def require_auth(f):
-    @wraps(f)
+    """Decorator to require authentication for endpoints"""
     def decorated_function(*args, **kwargs):
         if 'user' not in session:
             return jsonify({"error": "Authentication required"}), 401
         return f(*args, **kwargs)
+    decorated_function.__name__ = f.__name__
     return decorated_function
 
 def ensure_status_column():
@@ -140,13 +136,7 @@ def login():
         session['user'] = user['username']
         session.permanent = True
         print(f"User {user['username']} logged in successfully. Session: {dict(session)}")
-        
-        response = jsonify({"message": "Login successful", "user": {"username": user['username']}})
-        origin = request.headers.get('Origin')
-        if origin and is_allowed_origin(origin):
-            response.headers['Access-Control-Allow-Origin'] = origin
-            response.headers['Access-Control-Allow-Credentials'] = 'true'
-        return response, 200
+        return jsonify({"message": "Login successful", "user": {"username": user['username']}}), 200
     
     print(f"Failed login attempt for username: {data.get('username', 'unknown')}")
     return jsonify({"error": "Invalid credentials"}), 401
@@ -155,38 +145,19 @@ def login():
 def check_auth():
     """Check if user is authenticated"""
     print(f"Auth check - Session: {dict(session)}")
-    print(f"Session keys: {list(session.keys())}")
-    print(f"User in session: {'user' in session}")
-    
     if 'user' in session:
         print(f"User {session['user']} is authenticated")
-        response = jsonify({"authenticated": True, "user": {"username": session['user']}})
-        origin = request.headers.get('Origin')
-        if origin and is_allowed_origin(origin):
-            response.headers['Access-Control-Allow-Origin'] = origin
-            response.headers['Access-Control-Allow-Credentials'] = 'true'
-        return response, 200
+        return jsonify({"authenticated": True, "user": {"username": session['user']}}), 200
     
     print("No authenticated user found")
-    response = jsonify({"authenticated": False})
-    origin = request.headers.get('Origin')
-    if origin and is_allowed_origin(origin):
-        response.headers['Access-Control-Allow-Origin'] = origin
-        response.headers['Access-Control-Allow-Credentials'] = 'true'
-    return response, 401
+    return jsonify({"authenticated": False}), 401
 
 @app.route('/logout', methods=['POST'])
 def logout():
     username = session.get('user', 'unknown')
     session.clear()
     print(f"User {username} logged out")
-    
-    response = jsonify({"message": "Logged out"})
-    origin = request.headers.get('Origin')
-    if origin and is_allowed_origin(origin):
-        response.headers['Access-Control-Allow-Origin'] = origin
-        response.headers['Access-Control-Allow-Credentials'] = 'true'
-    return response, 200
+    return jsonify({"message": "Logged out"}), 200
 
 @app.route('/vms', methods=['GET'])
 @require_auth
