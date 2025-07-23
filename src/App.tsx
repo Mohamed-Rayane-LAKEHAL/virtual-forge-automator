@@ -17,20 +17,18 @@ const queryClient = new QueryClient({
   },
 });
 
-const LoadingSpinner = () => (
-  <div className="min-h-screen flex items-center justify-center">
-    <div className="text-center">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-      <p>Loading...</p>
-    </div>
-  </div>
-);
-
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
   
   if (isLoading) {
-    return <LoadingSpinner />;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
   }
   
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
@@ -40,37 +38,42 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
   
   if (isLoading) {
-    return <LoadingSpinner />;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
   }
   
   return !isAuthenticated ? <>{children}</> : <Navigate to="/dashboard" replace />;
 };
 
-const AppContent: React.FC = () => {
-  return (
-    <Routes>
-      <Route path="/login" element={
-        <PublicRoute>
-          <LoginForm />
-        </PublicRoute>
-      } />
-      <Route path="/dashboard" element={
-        <ProtectedRoute>
-          <Dashboard />
-        </ProtectedRoute>
-      } />
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
-  );
-};
+const AppRoutes: React.FC = () => (
+  <Routes>
+    <Route path="/login" element={
+      <PublicRoute>
+        <LoginForm />
+      </PublicRoute>
+    } />
+    <Route path="/dashboard" element={
+      <ProtectedRoute>
+        <Dashboard />
+      </ProtectedRoute>
+    } />
+    <Route path="/" element={<Navigate to="/dashboard" replace />} />
+    <Route path="*" element={<Navigate to="/dashboard" replace />} />
+  </Routes>
+);
 
 const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
-          <AppContent />
+          <AppRoutes />
           <Toaster />
           <Sonner />
         </AuthProvider>

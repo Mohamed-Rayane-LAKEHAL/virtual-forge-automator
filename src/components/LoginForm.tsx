@@ -13,32 +13,24 @@ const LoginForm: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const { login } = useAuth();
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError(null);
 
     try {
-      console.log('Attempting login with username:', username);
       const response = await apiService.login({ username, password });
-      console.log('Login response:', response);
-      
       login(username);
       toast({
         title: "Login successful",
         description: "Welcome to VM Automation Dashboard",
       });
     } catch (error) {
-      console.error('Login error:', error);
-      const errorMessage = error instanceof Error ? error.message : "Invalid credentials";
-      setError(errorMessage);
       toast({
         title: "Login failed",
-        description: errorMessage,
+        description: error instanceof Error ? error.message : "Invalid credentials",
         variant: "destructive",
       });
     } finally {
@@ -60,12 +52,6 @@ const LoginForm: React.FC = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
-                <AlertCircle className="h-4 w-4" />
-                {error}
-              </div>
-            )}
             <div className="space-y-2">
               <Label htmlFor="username">Username</Label>
               <Input

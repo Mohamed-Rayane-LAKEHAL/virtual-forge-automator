@@ -1,4 +1,3 @@
-
 import { VM, VMFormData, LoginData, User } from '../types/vm';
 
 // Allow configuration through environment variables with a fallback mechanism
@@ -20,28 +19,18 @@ class ApiService {
         ...options.headers,
       },
       credentials: 'include' as RequestCredentials,
-      mode: 'cors' as RequestMode,
       ...options,
     };
 
     console.log(`Making ${config.method || 'GET'} request to: ${url}`);
-    console.log('Request config:', config);
 
     try {
       const response = await fetch(url, config);
-      console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
       
       if (!response.ok) {
-        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-        try {
-          const error = await response.json();
-          errorMessage = error.error || errorMessage;
-        } catch (parseError) {
-          console.log('Could not parse error response as JSON:', parseError);
-        }
-        console.error('API Error:', errorMessage);
-        throw new Error(errorMessage);
+        const error = await response.json().catch(() => ({ error: 'Network error or server unavailable' }));
+        console.error('API Error:', error);
+        throw new Error(error.error || `HTTP ${response.status}: ${response.statusText}`);
       }
 
       const data = await response.json();
@@ -49,13 +38,7 @@ class ApiService {
       return data;
     } catch (error) {
       console.error('API Request failed:', error);
-      
-      // Check if it's a network error
-      if (error instanceof TypeError && error.message === 'Failed to fetch') {
-        throw new Error(`Cannot connect to server at ${API_BASE_URL}. Please check if the backend is running and the URL is correct.`);
-      }
-      
-      // Re-throw other errors
+      // Rethrow to allow handling by callers
       throw error;
     }
   }
