@@ -1,3 +1,4 @@
+
 from flask import Flask, request, jsonify, session, make_response
 from flask_cors import CORS
 from database import get_db_connection
@@ -9,9 +10,9 @@ import os
 
 app = Flask(__name__)
 
-# Configure CORS for cross-origin requests between Windows and Ubuntu
+# Configure CORS specifically for your network setup
 CORS(app, 
-     origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://192.168.1.41:3000", "http://localhost:5173", "http://127.0.0.1:5173", "http://192.168.1.41:5173"],  # Allow common dev ports
+     origins=["http://localhost:8080", "http://127.0.0.1:8080", "http://192.168.1.41:8080"],  # Frontend URLs
      supports_credentials=True,
      allow_headers=['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
      methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
@@ -19,10 +20,10 @@ CORS(app,
 # Use a more secure secret key
 app.secret_key = os.environ.get('SECRET_KEY', 'your_very_secure_secret_key_change_in_production')
 
-# Updated session configuration for cross-origin requests
+# Session configuration for cross-origin requests
 app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = None  # Allow cross-site requests
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Allow cross-site requests
 app.config['SESSION_COOKIE_DOMAIN'] = None  # Allow any domain
 app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour
 
@@ -40,7 +41,7 @@ def handle_preflight():
 @app.after_request
 def after_request(response):
     origin = request.headers.get('Origin')
-    if origin:
+    if origin and origin in ["http://localhost:8080", "http://127.0.0.1:8080", "http://192.168.1.41:8080"]:
         response.headers.add('Access-Control-Allow-Origin', origin)
     response.headers.add('Access-Control-Allow-Credentials', 'true')
     return response
@@ -147,6 +148,9 @@ def hash_user_password():
 @app.route('/login', methods=['POST'])
 def login():
     data = request.json
+    print(f"Login attempt from origin: {request.headers.get('Origin')}")
+    print(f"Login data received: {data}")
+    
     if not data or 'username' not in data or 'password' not in data:
         return jsonify({"error": "Username and password required"}), 400
 
@@ -166,7 +170,7 @@ def login():
         response = make_response(jsonify({"message": "Login successful", "user": {"username": user['username']}}))
         response.headers.add('Access-Control-Allow-Credentials', 'true')
         origin = request.headers.get('Origin')
-        if origin:
+        if origin and origin in ["http://localhost:8080", "http://127.0.0.1:8080", "http://192.168.1.41:8080"]:
             response.headers.add('Access-Control-Allow-Origin', origin)
         return response, 200
     
@@ -176,9 +180,9 @@ def login():
 @app.route('/check-auth', methods=['GET'])
 def check_auth():
     """Check if user is authenticated"""
+    print(f"Auth check from origin: {request.headers.get('Origin')}")
     print(f"Auth check - Session: {dict(session)}")
     print(f"Request headers: {dict(request.headers)}")
-    print(f"Request origin: {request.headers.get('Origin', 'No origin')}")
     
     response_data = {"authenticated": False}
     status_code = 200
@@ -193,7 +197,7 @@ def check_auth():
     response = make_response(jsonify(response_data))
     response.headers.add('Access-Control-Allow-Credentials', 'true')
     origin = request.headers.get('Origin')
-    if origin:
+    if origin and origin in ["http://localhost:8080", "http://127.0.0.1:8080", "http://192.168.1.41:8080"]:
         response.headers.add('Access-Control-Allow-Origin', origin)
     return response, status_code
 
@@ -205,7 +209,7 @@ def logout():
     response = make_response(jsonify({"message": "Logged out"}))
     response.headers.add('Access-Control-Allow-Credentials', 'true')
     origin = request.headers.get('Origin')
-    if origin:
+    if origin and origin in ["http://localhost:8080", "http://127.0.0.1:8080", "http://192.168.1.41:8080"]:
         response.headers.add('Access-Control-Allow-Origin', origin)
     return response, 200
 
@@ -317,4 +321,5 @@ if __name__ == '__main__':
     # Ensure database columns exist on startup
     ensure_status_column()
     # Bind to all network interfaces (0.0.0.0) to be accessible from other machines
+    print("Starting Flask server on http://192.168.1.41:5000")
     app.run(debug=True, host='0.0.0.0', port=5000)
