@@ -7,12 +7,22 @@ import bcrypt
 import threading
 import time
 import os
+from functools import wraps
 
 app = Flask(__name__)
 
+# Function to check if origin is allowed (any device in 192.168.1.x network on port 8080)
+def is_allowed_origin(origin):
+    if not origin:
+        return False
+    # Allow any IP in 192.168.1.x network on port 8080
+    import re
+    pattern = r'^http://192\.168\.1\.\d+:8080$'
+    return bool(re.match(pattern, origin))
+
 # Configure CORS to allow credentials from the 192.168.1.x network
 CORS(app, 
-     origins=["http://192.168.1.35:8080"],  # Specific origin for better security
+     origins=is_allowed_origin,
      supports_credentials=True,
      allow_headers=['Content-Type', 'Authorization'],
      methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
@@ -25,7 +35,19 @@ app.config['SESSION_COOKIE_SAMESITE'] = None  # Allow cross-site cookies
 app.config['SESSION_COOKIE_DOMAIN'] = None  # Don't restrict domain
 app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour
 
-# ... keep existing code (hash_password, verify_password, require_auth functions)
+def hash_password(password):
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+def verify_password(password, hashed):
+    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+
+def require_auth(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user' not in session:
+            return jsonify({"error": "Authentication required"}), 401
+        return f(*args, **kwargs)
+    return decorated_function
 
 def ensure_status_column():
     """Ensure the status column exists in the vms table"""
@@ -120,8 +142,10 @@ def login():
         print(f"User {user['username']} logged in successfully. Session: {dict(session)}")
         
         response = jsonify({"message": "Login successful", "user": {"username": user['username']}})
-        response.headers['Access-Control-Allow-Origin'] = 'http://192.168.1.35:8080'
-        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        origin = request.headers.get('Origin')
+        if origin and is_allowed_origin(origin):
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
         return response, 200
     
     print(f"Failed login attempt for username: {data.get('username', 'unknown')}")
@@ -137,14 +161,18 @@ def check_auth():
     if 'user' in session:
         print(f"User {session['user']} is authenticated")
         response = jsonify({"authenticated": True, "user": {"username": session['user']}})
-        response.headers['Access-Control-Allow-Origin'] = 'http://192.168.1.35:8080'
-        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        origin = request.headers.get('Origin')
+        if origin and is_allowed_origin(origin):
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
         return response, 200
     
     print("No authenticated user found")
     response = jsonify({"authenticated": False})
-    response.headers['Access-Control-Allow-Origin'] = 'http://192.168.1.35:8080'
-    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    origin = request.headers.get('Origin')
+    if origin and is_allowed_origin(origin):
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
     return response, 401
 
 @app.route('/logout', methods=['POST'])
@@ -154,8 +182,10 @@ def logout():
     print(f"User {username} logged out")
     
     response = jsonify({"message": "Logged out"})
-    response.headers['Access-Control-Allow-Origin'] = 'http://192.168.1.35:8080'
-    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    origin = request.headers.get('Origin')
+    if origin and is_allowed_origin(origin):
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
     return response, 200
 
 @app.route('/vms', methods=['GET'])
