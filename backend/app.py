@@ -1,5 +1,3 @@
-
-
 from flask import Flask, request, jsonify, session
 from flask_cors import CORS
 from database import get_db_connection
@@ -22,9 +20,10 @@ CORS(app,
 
 # Use a more secure secret key
 app.secret_key = os.environ.get('SECRET_KEY', 'your_very_secure_secret_key_change_in_production')
-app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+app.config['SESSION_COOKIE_SECURE'] = False  # Must be False for HTTP
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Allow cross-origin requests
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Changed from 'None' to 'Lax'
+app.config['SESSION_COOKIE_DOMAIN'] = None  # Allow for any domain/IP
 app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour
 
 def hash_password(password):
@@ -43,7 +42,11 @@ def verify_password(password, hashed_password):
 def require_auth(f):
     """Decorator to require authentication for endpoints"""
     def decorated_function(*args, **kwargs):
+        print(f"Auth check - Session ID: {session.get('_id', 'None')}")
+        print(f"Auth check - Session user: {session.get('user', 'None')}")
+        print(f"Auth check - Full session: {dict(session)}")
         if 'user' not in session:
+            print("Authentication failed - no user in session")
             return jsonify({"error": "Authentication required"}), 401
         return f(*args, **kwargs)
     decorated_function.__name__ = f.__name__
@@ -167,9 +170,12 @@ def login():
     conn.close()
 
     if user and verify_password(data['password'], user['password']):
+        session.clear()  # Clear any existing session
         session['user'] = user['username']
         session.permanent = True
-        print(f"User {user['username']} logged in successfully. Session: {dict(session)}")
+        print(f"User {user['username']} logged in successfully.")
+        print(f"Session after login - ID: {session.get('_id', 'None')}")
+        print(f"Session after login - Full: {dict(session)}")
         return jsonify({"message": "Login successful", "user": {"username": user['username']}}), 200
     
     print(f"Failed login attempt for username: {data.get('username', 'unknown')}")
@@ -178,7 +184,10 @@ def login():
 @app.route('/check-auth', methods=['GET'])
 def check_auth():
     """Check if user is authenticated"""
-    print(f"Auth check - Session: {dict(session)}")
+    print(f"Check auth - Session ID: {session.get('_id', 'None')}")
+    print(f"Check auth - Session: {dict(session)}")
+    print(f"Check auth - Request headers: {dict(request.headers)}")
+    
     if 'user' in session:
         print(f"User {session['user']} is authenticated")
         return jsonify({"authenticated": True, "user": {"username": session['user']}}), 200
@@ -295,4 +304,3 @@ if __name__ == '__main__':
     ensure_status_column()
     # Bind to all network interfaces (0.0.0.0) to be accessible from other machines
     app.run(debug=True, host='0.0.0.0', port=5000)
-
