@@ -1,3 +1,4 @@
+
 from flask import Flask, request, jsonify, session
 from flask_cors import CORS
 from database import get_db_connection
@@ -9,9 +10,9 @@ import os
 
 app = Flask(__name__)
 
-# Configure CORS to accept requests from any origin (more permissive for development)
+# Configure CORS to accept requests from any IP in the 192.168.1.x network
 CORS(app, 
-     origins=["http://192.168.1.41:8080"],
+     origins=["http://192.168.1.*:8080", "http://192.168.1.*:3000", "http://localhost:8080", "http://localhost:3000"],
      supports_credentials=True,
      allow_headers=['Content-Type', 'Authorization'],
      methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
@@ -20,7 +21,7 @@ CORS(app,
 app.secret_key = os.environ.get('SECRET_KEY', 'your_very_secure_secret_key_change_in_production')
 app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Changed from 'Lax' to 'None' to allow cross-origin requests
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Allow cross-origin requests
 app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour
 
 def hash_password(password):
@@ -108,6 +109,17 @@ def execute_vm_creation_async(vm_id, vm_data):
     conn.close()
     
     print(f"VM {vm_id} updated with status: {status}")
+
+@app.after_request
+def after_request(response):
+    """Add CORS headers to all responses"""
+    origin = request.headers.get('Origin')
+    if origin and any(origin.startswith(allowed.replace('*', '')) for allowed in ["http://192.168.1.", "http://localhost"]):
+        response.headers.add('Access-Control-Allow-Origin', origin)
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
 
 @app.route('/hash-password', methods=['POST'])
 def hash_user_password():
