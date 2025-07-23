@@ -25,12 +25,10 @@ class ApiService {
     };
 
     console.log(`Making ${config.method || 'GET'} request to: ${url}`);
-    console.log('Request config:', config);
 
     try {
       const response = await fetch(url, config);
       console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
       
       if (!response.ok) {
         let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
@@ -52,7 +50,7 @@ class ApiService {
       
       // Check if it's a network error
       if (error instanceof TypeError && error.message === 'Failed to fetch') {
-        throw new Error(`Cannot connect to server at ${API_BASE_URL}. Please check if the backend is running and the URL is correct.`);
+        throw new Error('Server is currently unavailable. Please try again later.');
       }
       
       // Re-throw other errors
