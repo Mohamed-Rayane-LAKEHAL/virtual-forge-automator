@@ -1,3 +1,4 @@
+
 from flask import Flask, request, jsonify, session
 from flask_cors import CORS
 from database import get_db_connection
@@ -9,19 +10,35 @@ import os
 
 app = Flask(__name__)
 
-# Configure CORS to accept requests from any origin (more permissive for development)
+# Configure CORS to be more permissive for cross-origin requests
 CORS(app, 
-     origins="*",
+     origins="*",  # Allow all origins
      supports_credentials=True,
-     allow_headers=['Content-Type', 'Authorization'],
+     allow_headers=['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
      methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
 
 # Use a more secure secret key
 app.secret_key = os.environ.get('SECRET_KEY', 'your_very_secure_secret_key_change_in_production')
+
+# Updated session configuration for cross-origin requests
 app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Changed from 'Lax' to 'None' to allow cross-origin requests
+app.config['SESSION_COOKIE_SAMESITE'] = None  # Allow cross-site requests
+app.config['SESSION_COOKIE_DOMAIN'] = None  # Allow any domain
 app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour
+
+# Add OPTIONS handler for preflight requests
+@app.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        response = make_response()
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add('Access-Control-Allow-Headers', "*")
+        response.headers.add('Access-Control-Allow-Methods', "*")
+        response.headers.add('Access-Control-Allow-Credentials', "true")
+        return response
+
+# ... keep existing code (hash_password, verify_password, require_auth, ensure_status_column functions)
 
 def hash_password(password):
     """Hash a password using bcrypt"""
@@ -39,8 +56,11 @@ def verify_password(password, hashed_password):
 def require_auth(f):
     """Decorator to require authentication for endpoints"""
     def decorated_function(*args, **kwargs):
+        print(f"Auth check for {request.endpoint}: Session = {dict(session)}")
         if 'user' not in session:
+            print("Authentication failed - no user in session")
             return jsonify({"error": "Authentication required"}), 401
+        print(f"Authentication successful for user: {session['user']}")
         return f(*args, **kwargs)
     decorated_function.__name__ = f.__name__
     return decorated_function
@@ -136,7 +156,11 @@ def login():
         session['user'] = user['username']
         session.permanent = True
         print(f"User {user['username']} logged in successfully. Session: {dict(session)}")
-        return jsonify({"message": "Login successful", "user": {"username": user['username']}}), 200
+        
+        # Create response with explicit headers for cross-origin cookies
+        response = jsonify({"message": "Login successful", "user": {"username": user['username']}})
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        return response, 200
     
     print(f"Failed login attempt for username: {data.get('username', 'unknown')}")
     return jsonify({"error": "Invalid credentials"}), 401
@@ -145,19 +169,28 @@ def login():
 def check_auth():
     """Check if user is authenticated"""
     print(f"Auth check - Session: {dict(session)}")
+    print(f"Request headers: {dict(request.headers)}")
+    print(f"Request origin: {request.headers.get('Origin', 'No origin')}")
+    
     if 'user' in session:
         print(f"User {session['user']} is authenticated")
-        return jsonify({"authenticated": True, "user": {"username": session['user']}}), 200
+        response = jsonify({"authenticated": True, "user": {"username": session['user']}})
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        return response, 200
     
     print("No authenticated user found")
-    return jsonify({"authenticated": False}), 401
+    response = jsonify({"authenticated": False})
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    return response, 401
 
 @app.route('/logout', methods=['POST'])
 def logout():
     username = session.get('user', 'unknown')
     session.clear()
     print(f"User {username} logged out")
-    return jsonify({"message": "Logged out"}), 200
+    response = jsonify({"message": "Logged out"})
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    return response, 200
 
 @app.route('/vms', methods=['GET'])
 @require_auth
@@ -168,7 +201,10 @@ def list_vms():
     vms = cursor.fetchall()
     cursor.close()
     conn.close()
-    return jsonify(vms)
+    
+    response = jsonify(vms)
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    return response
 
 @app.route('/vms', methods=['POST'])
 @require_auth
@@ -200,7 +236,9 @@ def create_vm():
     thread.daemon = True
     thread.start()
     
-    return jsonify({"message": "VM creation started", "vm_id": vm_id}), 201
+    response = jsonify({"message": "VM creation started", "vm_id": vm_id})
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    return response, 201
 
 @app.route('/vms/batch', methods=['POST'])
 @require_auth
@@ -246,7 +284,9 @@ def create_batch_vms():
             # Add small delay between starts to avoid overwhelming the system
             time.sleep(1)
         
-        return jsonify({"message": f"Batch VM creation started for {len(vm_names)} VMs", "vm_ids": vm_ids}), 201
+        response = jsonify({"message": f"Batch VM creation started for {len(vm_names)} VMs", "vm_ids": vm_ids})
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        return response, 201
         
     except Exception as e:
         conn.rollback()
@@ -255,6 +295,9 @@ def create_batch_vms():
     finally:
         cursor.close()
         conn.close()
+
+# Add missing import for make_response
+from flask import make_response
 
 if __name__ == '__main__':
     # Ensure database columns exist on startup
