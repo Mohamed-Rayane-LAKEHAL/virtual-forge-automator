@@ -1,5 +1,4 @@
-
-from flask import Flask, request, jsonify, session
+from flask import Flask, request, jsonify, session, make_response
 from flask_cors import CORS
 from database import get_db_connection
 from powershell_runner import run_vm_creation_powershell
@@ -10,9 +9,9 @@ import os
 
 app = Flask(__name__)
 
-# Configure CORS to be more permissive for cross-origin requests
+# Configure CORS for cross-origin requests between Windows and Ubuntu
 CORS(app, 
-     origins="*",  # Allow all origins
+     origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://192.168.1.41:3000", "http://localhost:5173", "http://127.0.0.1:5173", "http://192.168.1.41:5173"],  # Allow common dev ports
      supports_credentials=True,
      allow_headers=['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
      methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
@@ -32,13 +31,19 @@ app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour
 def handle_preflight():
     if request.method == "OPTIONS":
         response = make_response()
-        response.headers.add("Access-Control-Allow-Origin", "*")
-        response.headers.add('Access-Control-Allow-Headers', "*")
-        response.headers.add('Access-Control-Allow-Methods', "*")
+        response.headers.add("Access-Control-Allow-Origin", request.headers.get('Origin', '*'))
+        response.headers.add('Access-Control-Allow-Headers', "Content-Type, Authorization, Accept, Origin, X-Requested-With")
+        response.headers.add('Access-Control-Allow-Methods', "GET, POST, PUT, DELETE, OPTIONS")
         response.headers.add('Access-Control-Allow-Credentials', "true")
         return response
 
-# ... keep existing code (hash_password, verify_password, require_auth, ensure_status_column functions)
+@app.after_request
+def after_request(response):
+    origin = request.headers.get('Origin')
+    if origin:
+        response.headers.add('Access-Control-Allow-Origin', origin)
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    return response
 
 def hash_password(password):
     """Hash a password using bcrypt"""
@@ -158,8 +163,11 @@ def login():
         print(f"User {user['username']} logged in successfully. Session: {dict(session)}")
         
         # Create response with explicit headers for cross-origin cookies
-        response = jsonify({"message": "Login successful", "user": {"username": user['username']}})
+        response = make_response(jsonify({"message": "Login successful", "user": {"username": user['username']}}))
         response.headers.add('Access-Control-Allow-Credentials', 'true')
+        origin = request.headers.get('Origin')
+        if origin:
+            response.headers.add('Access-Control-Allow-Origin', origin)
         return response, 200
     
     print(f"Failed login attempt for username: {data.get('username', 'unknown')}")
@@ -172,24 +180,33 @@ def check_auth():
     print(f"Request headers: {dict(request.headers)}")
     print(f"Request origin: {request.headers.get('Origin', 'No origin')}")
     
+    response_data = {"authenticated": False}
+    status_code = 200
+    
     if 'user' in session:
         print(f"User {session['user']} is authenticated")
-        response = jsonify({"authenticated": True, "user": {"username": session['user']}})
-        response.headers.add('Access-Control-Allow-Credentials', 'true')
-        return response, 200
+        response_data = {"authenticated": True, "user": {"username": session['user']}}
+        status_code = 200
+    else:
+        print("No authenticated user found")
     
-    print("No authenticated user found")
-    response = jsonify({"authenticated": False})
+    response = make_response(jsonify(response_data))
     response.headers.add('Access-Control-Allow-Credentials', 'true')
-    return response, 401
+    origin = request.headers.get('Origin')
+    if origin:
+        response.headers.add('Access-Control-Allow-Origin', origin)
+    return response, status_code
 
 @app.route('/logout', methods=['POST'])
 def logout():
     username = session.get('user', 'unknown')
     session.clear()
     print(f"User {username} logged out")
-    response = jsonify({"message": "Logged out"})
+    response = make_response(jsonify({"message": "Logged out"}))
     response.headers.add('Access-Control-Allow-Credentials', 'true')
+    origin = request.headers.get('Origin')
+    if origin:
+        response.headers.add('Access-Control-Allow-Origin', origin)
     return response, 200
 
 @app.route('/vms', methods=['GET'])
@@ -295,9 +312,6 @@ def create_batch_vms():
     finally:
         cursor.close()
         conn.close()
-
-# Add missing import for make_response
-from flask import make_response
 
 if __name__ == '__main__':
     # Ensure database columns exist on startup
