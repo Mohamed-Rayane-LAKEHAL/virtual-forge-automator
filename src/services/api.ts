@@ -25,10 +25,12 @@ class ApiService {
     };
 
     console.log(`Making ${config.method || 'GET'} request to: ${url}`);
+    console.log('Request config:', config);
 
     try {
       const response = await fetch(url, config);
       console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
       
       if (!response.ok) {
         let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
