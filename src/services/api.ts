@@ -1,7 +1,7 @@
 
 import { VM, VMFormData, LoginData, User } from '../types/vm';
 
-// Allow configuration through environment variables with a fallback mechanism
+// Use the current machine's IP where the backend is running
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://192.168.1.41:5000';
 
 console.log('API_BASE_URL configured as:', API_BASE_URL);
