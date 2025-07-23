@@ -33,9 +33,15 @@ class ApiService {
       console.log('Response headers:', Object.fromEntries(response.headers.entries()));
       
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Network error or server unavailable' }));
-        console.error('API Error:', error);
-        throw new Error(error.error || `HTTP ${response.status}: ${response.statusText}`);
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        try {
+          const error = await response.json();
+          errorMessage = error.error || errorMessage;
+        } catch (parseError) {
+          console.log('Could not parse error response as JSON:', parseError);
+        }
+        console.error('API Error:', errorMessage);
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -43,7 +49,13 @@ class ApiService {
       return data;
     } catch (error) {
       console.error('API Request failed:', error);
-      // Rethrow to allow handling by callers
+      
+      // Check if it's a network error
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        throw new Error(`Cannot connect to server at ${API_BASE_URL}. Please check if the backend is running and the URL is correct.`);
+      }
+      
+      // Re-throw other errors
       throw error;
     }
   }
