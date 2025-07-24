@@ -1,7 +1,7 @@
 import { VM, VMFormData, LoginData, User } from '../types/vm';
 
 // Allow configuration through environment variables with a fallback mechanism
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://192.168.1.41:5000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export interface BatchVMData extends Omit<VMFormData, 'vmName'> {
   vmNames: string[];
