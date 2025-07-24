@@ -144,6 +144,7 @@ const Dashboard: React.FC = () => {
               <VMTable 
                 vms={vms} 
                 isLoading={isLoading} 
+                onVMCreated={handleVMCreated}
               />
             </div>
           </main>

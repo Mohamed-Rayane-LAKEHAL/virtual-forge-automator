@@ -29,19 +29,24 @@ import {
   PaginationPrevious,
 } from '@/components/ui/pagination';
 import { VM } from '../types/vm';
-import { Server, Cpu, HardDrive, MemoryStick, CheckCircle, XCircle, Clock, Eye } from 'lucide-react';
+import { Server, Cpu, HardDrive, MemoryStick, CheckCircle, XCircle, Clock, Eye, Copy } from 'lucide-react';
 import VMDetailsModal from './VMDetailsModal';
+import { apiService } from '../services/api';
+import { useToast } from '@/hooks/use-toast';
 
 interface VMTableProps {
   vms: VM[];
   isLoading?: boolean;
+  onVMCreated?: () => void;
 }
 
-const VMTable: React.FC<VMTableProps> = ({ vms, isLoading = false }) => {
+const VMTable: React.FC<VMTableProps> = ({ vms, isLoading = false, onVMCreated }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [selectedVM, setSelectedVM] = useState<VM | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [copyingVmId, setCopyingVmId] = useState<number | null>(null);
+  const { toast } = useToast();
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -88,6 +93,39 @@ const VMTable: React.FC<VMTableProps> = ({ vms, isLoading = false }) => {
   const handleViewDetails = (vm: VM) => {
     setSelectedVM(vm);
     setIsDetailsModalOpen(true);
+  };
+
+  const handleCopyVM = async (vm: VM) => {
+    setCopyingVmId(vm.id);
+    try {
+      const copyData = {
+        vmName: `${vm.vmName}-copy`,
+        esxiHost: vm.esxiHost,
+        datastore: vm.datastore,
+        network: vm.network,
+        cpuCount: vm.cpuCount,
+        memoryGB: vm.memoryGB,
+        diskGB: vm.diskGB,
+        isoPath: vm.isoPath,
+        guestOS: vm.guestOS,
+        vcenter: vm.vcenter,
+      };
+
+      await apiService.createVM(copyData);
+      toast({
+        title: "VM Copied Successfully",
+        description: `${copyData.vmName} has been created`,
+      });
+      onVMCreated?.();
+    } catch (error) {
+      toast({
+        title: "Error Copying VM",
+        description: error instanceof Error ? error.message : "Failed to copy VM",
+        variant: "destructive",
+      });
+    } finally {
+      setCopyingVmId(null);
+    }
   };
 
   // Calculate pagination
@@ -217,16 +255,29 @@ const VMTable: React.FC<VMTableProps> = ({ vms, isLoading = false }) => {
                       {formatDate(vm.created_at)}
                     </TableCell>
                     <TableCell>
-                      {vm.status !== 'pending' && (
+                      <div className="flex gap-2">
+                        {vm.status !== 'pending' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewDetails(vm)}
+                            className="h-8 w-8 p-0"
+                            title="View Details"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleViewDetails(vm)}
+                          onClick={() => handleCopyVM(vm)}
+                          disabled={copyingVmId === vm.id}
                           className="h-8 w-8 p-0"
+                          title="Copy VM"
                         >
-                          <Eye className="h-4 w-4" />
+                          <Copy className="h-4 w-4" />
                         </Button>
-                      )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
