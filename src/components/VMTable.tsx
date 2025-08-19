@@ -75,18 +75,18 @@ const VMTable: React.FC<VMTableProps> = ({ vms, isLoading = false, onVMCreated }
     // Special handling for deleted VMs
     if (deleted === true) {
       return (
-        <Badge variant="default" className="w-fit bg-red-100 text-red-800 hover:bg-red-200">
-          <CheckCircle className="h-3 w-3 mr-1" />
-          Deleted
+        <Badge variant="default" className="w-fit bg-red-600 text-white hover:bg-red-700 font-semibold">
+          <XCircle className="h-3 w-3 mr-1" />
+          VM Deleted
         </Badge>
       );
     }
     
     if (status === 'pending' && deleted === false) {
       return (
-        <Badge variant="secondary" className="w-fit bg-orange-100 text-orange-800 hover:bg-orange-200">
+        <Badge variant="secondary" className="w-fit bg-orange-100 text-orange-800 hover:bg-orange-200 animate-pulse">
           <Clock className="h-3 w-3 mr-1" />
-          Deleting...
+          Deleting VM...
         </Badge>
       );
     }
