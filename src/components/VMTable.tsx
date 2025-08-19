@@ -320,40 +320,54 @@ const VMTable: React.FC<VMTableProps> = ({ vms, isLoading = false, onVMCreated }
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
-                        {vm.status !== 'pending' && !vm.deleted && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleViewDetails(vm)}
-                            className="h-8 w-8 p-0"
-                            title="View Details"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {!vm.deleted && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleCopyVM(vm)}
-                            disabled={copyingVmId === vm.id}
-                            className="h-8 w-8 p-0"
-                            title="Copy VM"
-                          >
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {!vm.deleted && vm.status !== 'pending' && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteClick(vm)}
-                            disabled={deletingVmId === vm.id}
-                            className="h-8 w-8 p-0 hover:bg-red-50 hover:border-red-200"
-                            title="Remove VM"
-                          >
-                            <Trash2 className="h-4 w-4 text-red-600" />
-                          </Button>
+                        {vm.deleted ? (
+                          <div className="flex items-center text-muted-foreground text-sm">
+                            <XCircle className="h-4 w-4 mr-2 text-red-600" />
+                            VM Removed from Server
+                          </div>
+                        ) : vm.status === 'pending' && deletingVmId === vm.id ? (
+                          <div className="flex items-center text-muted-foreground text-sm">
+                            <Clock className="h-4 w-4 mr-2 animate-spin" />
+                            Removing VM...
+                          </div>
+                        ) : (
+                          <>
+                            {vm.status !== 'pending' && !vm.deleted && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleViewDetails(vm)}
+                                className="h-8 w-8 p-0"
+                                title="View Details"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {!vm.deleted && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleCopyVM(vm)}
+                                disabled={copyingVmId === vm.id}
+                                className="h-8 w-8 p-0"
+                                title="Copy VM"
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {!vm.deleted && vm.status !== 'pending' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteClick(vm)}
+                                disabled={deletingVmId === vm.id}
+                                className="h-8 w-8 p-0 hover:bg-red-50 hover:border-red-200"
+                                title="Remove VM"
+                              >
+                                <Trash2 className="h-4 w-4 text-red-600" />
+                              </Button>
+                            )}
+                          </>
                         )}
                       </div>
                     </TableCell>
