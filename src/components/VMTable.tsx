@@ -29,7 +29,7 @@ import {
   PaginationPrevious,
 } from '@/components/ui/pagination';
 import { VM } from '../types/vm';
-import { Server, Cpu, HardDrive, MemoryStick, CheckCircle, XCircle, Clock, Eye, Copy } from 'lucide-react';
+import { Server, Cpu, HardDrive, MemoryStick, CheckCircle, XCircle, Clock, Eye, Copy, Trash2 } from 'lucide-react';
 import VMDetailsModal from './VMDetailsModal';
 import { apiService } from '../services/api';
 import { useToast } from '@/hooks/use-toast';
@@ -46,6 +46,7 @@ const VMTable: React.FC<VMTableProps> = ({ vms, isLoading = false, onVMCreated }
   const [selectedVM, setSelectedVM] = useState<VM | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [copyingVmId, setCopyingVmId] = useState<number | null>(null);
+  const [deletingVmId, setDeletingVmId] = useState<number | null>(null);
   const { toast } = useToast();
 
   const formatDate = (dateString: string) => {
@@ -58,7 +59,26 @@ const VMTable: React.FC<VMTableProps> = ({ vms, isLoading = false, onVMCreated }
     });
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, deleted?: boolean) => {
+    // Special handling for deleted VMs
+    if (deleted === true) {
+      return (
+        <Badge variant="default" className="w-fit bg-red-100 text-red-800 hover:bg-red-200">
+          <CheckCircle className="h-3 w-3 mr-1" />
+          Deleted
+        </Badge>
+      );
+    }
+    
+    if (status === 'pending' && deleted === false) {
+      return (
+        <Badge variant="secondary" className="w-fit bg-orange-100 text-orange-800 hover:bg-orange-200">
+          <Clock className="h-3 w-3 mr-1" />
+          Deleting...
+        </Badge>
+      );
+    }
+
     switch (status) {
       case 'success':
         return (
@@ -125,6 +145,26 @@ const VMTable: React.FC<VMTableProps> = ({ vms, isLoading = false, onVMCreated }
       });
     } finally {
       setCopyingVmId(null);
+    }
+  };
+
+  const handleDeleteVM = async (vm: VM) => {
+    setDeletingVmId(vm.id);
+    try {
+      await apiService.deleteVM(vm.id);
+      toast({
+        title: "VM Deletion Started",
+        description: `${vm.vmName} deletion process has been initiated`,
+      });
+      onVMCreated?.(); // Refresh the list
+    } catch (error) {
+      toast({
+        title: "Error Deleting VM",
+        description: error instanceof Error ? error.message : "Failed to delete VM",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingVmId(null);
     }
   };
 
@@ -250,13 +290,13 @@ const VMTable: React.FC<VMTableProps> = ({ vms, isLoading = false, onVMCreated }
                       <Badge variant="secondary">{vm.guestOS}</Badge>
                     </TableCell>
                     <TableCell>{vm.vcenter}</TableCell>
-                    <TableCell>{getStatusBadge(vm.status)}</TableCell>
+                    <TableCell>{getStatusBadge(vm.status, vm.deleted)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {formatDate(vm.created_at)}
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
-                        {vm.status !== 'pending' && (
+                        {vm.status !== 'pending' && !vm.deleted && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -267,16 +307,30 @@ const VMTable: React.FC<VMTableProps> = ({ vms, isLoading = false, onVMCreated }
                             <Eye className="h-4 w-4" />
                           </Button>
                         )}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleCopyVM(vm)}
-                          disabled={copyingVmId === vm.id}
-                          className="h-8 w-8 p-0"
-                          title="Copy VM"
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
+                        {!vm.deleted && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleCopyVM(vm)}
+                            disabled={copyingVmId === vm.id}
+                            className="h-8 w-8 p-0"
+                            title="Copy VM"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {!vm.deleted && vm.status !== 'pending' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteVM(vm)}
+                            disabled={deletingVmId === vm.id}
+                            className="h-8 w-8 p-0 hover:bg-red-50 hover:border-red-200"
+                            title="Delete VM"
+                          >
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

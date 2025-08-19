@@ -77,6 +77,12 @@ class ApiService {
       body: JSON.stringify(batchData),
     });
   }
+
+  async deleteVM(vmId: number): Promise<{ message: string }> {
+    return this.request(`/vms/${vmId}`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const apiService = new ApiService();

@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, session
 from flask_cors import CORS
 from database import get_db_connection
-from powershell_runner import run_vm_creation_powershell
+from powershell_runner import run_vm_creation_powershell, run_vm_deletion_powershell
 import bcrypt
 import threading
 import time
@@ -66,7 +66,7 @@ def is_allowed_origin(origin):
     return re.match(pattern, origin) is not None
 
 def ensure_status_column():
-    """Ensure the status column exists in the vms table"""
+    """Ensure the status and deleted columns exist in the vms table"""
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
@@ -89,6 +89,16 @@ def ensure_status_column():
             cursor.execute("ALTER TABLE vms ADD COLUMN result TEXT")
             conn.commit()
             print("Added result column to vms table")
+            
+        # Check if deleted column exists
+        cursor.execute("SHOW COLUMNS FROM vms LIKE 'deleted'")
+        result = cursor.fetchone()
+        
+        if not result:
+            # Add deleted column if it doesn't exist
+            cursor.execute("ALTER TABLE vms ADD COLUMN deleted BOOLEAN DEFAULT FALSE")
+            conn.commit()
+            print("Added deleted column to vms table")
             
     except Exception as e:
         print(f"Error ensuring columns exist: {e}")
@@ -128,6 +138,33 @@ def execute_vm_creation_async(vm_id, vm_data):
     conn.close()
     
     print(f"VM {vm_id} updated with status: {status}")
+
+def execute_vm_deletion_async(vm_id, vm_data):
+    """Execute PowerShell script for VM deletion asynchronously and update database"""
+    print(f"Starting PowerShell deletion for VM ID: {vm_id}")
+    ps_result = run_vm_deletion_powershell(vm_data)
+    print("DELETION RESULT FROM APP.PY: ", ps_result)
+    
+    # Update database with deletion result
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    if ps_result['success']:
+        # VM successfully deleted from server, set deleted=true
+        cursor.execute("""
+            UPDATE vms SET deleted = TRUE, result = %s, status = 'success' WHERE id = %s
+        """, (f"SUCCESS: {ps_result['output']}", vm_id))
+    else:
+        # Deletion failed, update result but keep deleted=false
+        cursor.execute("""
+            UPDATE vms SET result = %s, status = 'error' WHERE id = %s
+        """, (f"DELETION ERROR: {ps_result['error']}", vm_id))
+    
+    conn.commit()
+    cursor.close()
+    conn.close()
+    
+    print(f"VM {vm_id} deletion process completed")
 
 @app.after_request
 def after_request(response):
@@ -298,6 +335,36 @@ def create_batch_vms():
     finally:
         cursor.close()
         conn.close()
+
+@app.route('/vms/<int:vm_id>', methods=['DELETE'])
+@require_auth
+def delete_vm(vm_id):
+    """Delete a VM by ID"""
+    # First get the VM data
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM vms WHERE id = %s", (vm_id,))
+    vm = cursor.fetchone()
+    
+    if not vm:
+        cursor.close()
+        conn.close()
+        return jsonify({"error": "VM not found"}), 404
+    
+    # Mark VM as deletion in progress (deleted=false initially)
+    cursor.execute("""
+        UPDATE vms SET status = 'pending', result = 'Deletion in progress...', deleted = FALSE WHERE id = %s
+    """, (vm_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    
+    # Start PowerShell deletion in background thread
+    thread = threading.Thread(target=execute_vm_deletion_async, args=(vm_id, vm))
+    thread.daemon = True
+    thread.start()
+    
+    return jsonify({"message": "VM deletion started", "vm_id": vm_id}), 200
 
 if __name__ == '__main__':
     # Ensure database columns exist on startup

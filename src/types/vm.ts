@@ -13,6 +13,7 @@ export interface VM {
   created_at: string;
   result?: string;
   status: 'pending' | 'success' | 'error';
+  deleted?: boolean;
 }
 
 export interface VMFormData {
