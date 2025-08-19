@@ -20,6 +20,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Pagination,
   PaginationContent,
   PaginationEllipsis,
@@ -47,6 +57,8 @@ const VMTable: React.FC<VMTableProps> = ({ vms, isLoading = false, onVMCreated }
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [copyingVmId, setCopyingVmId] = useState<number | null>(null);
   const [deletingVmId, setDeletingVmId] = useState<number | null>(null);
+  const [vmToDelete, setVmToDelete] = useState<VM | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const formatDate = (dateString: string) => {
@@ -150,6 +162,7 @@ const VMTable: React.FC<VMTableProps> = ({ vms, isLoading = false, onVMCreated }
 
   const handleDeleteVM = async (vm: VM) => {
     setDeletingVmId(vm.id);
+    setIsDeleteDialogOpen(false);
     try {
       await apiService.deleteVM(vm.id);
       toast({
@@ -165,6 +178,17 @@ const VMTable: React.FC<VMTableProps> = ({ vms, isLoading = false, onVMCreated }
       });
     } finally {
       setDeletingVmId(null);
+    }
+  };
+
+  const handleDeleteClick = (vm: VM) => {
+    setVmToDelete(vm);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (vmToDelete) {
+      handleDeleteVM(vmToDelete);
     }
   };
 
@@ -323,10 +347,10 @@ const VMTable: React.FC<VMTableProps> = ({ vms, isLoading = false, onVMCreated }
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleDeleteVM(vm)}
+                            onClick={() => handleDeleteClick(vm)}
                             disabled={deletingVmId === vm.id}
                             className="h-8 w-8 p-0 hover:bg-red-50 hover:border-red-200"
-                            title="Delete VM"
+                            title="Remove VM"
                           >
                             <Trash2 className="h-4 w-4 text-red-600" />
                           </Button>
@@ -392,6 +416,26 @@ const VMTable: React.FC<VMTableProps> = ({ vms, isLoading = false, onVMCreated }
         open={isDetailsModalOpen}
         onOpenChange={setIsDetailsModalOpen}
       />
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Virtual Machine</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove "{vmToDelete?.vmName}"? This action will permanently delete the VM from the vCenter server and cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmDelete}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              Remove VM
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
